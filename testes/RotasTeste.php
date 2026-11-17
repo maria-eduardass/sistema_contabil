@@ -69,9 +69,16 @@ teste('Rotas: o cadastro nunca aceita GET para gravar (só POST) e o formulário
     afirmarIgual(['GET'], array_keys($rotas['cadastro/novo']));
 });
 
-teste('Rotas: o cliente só consegue gravar a própria avaliação (e sair); todo o resto é do contador', function () {
+/**
+ * Rotas em que o DONO da empresa (cliente) também grava, mas SÓ nos dados da própria empresa. Elas são "logado" (não
+ * "contador") e a propriedade é conferida dentro do controller com Guarda::exigirEmpresa (ver o teste mais abaixo).
+ * Acrescentar uma rota aqui é uma decisão de segurança consciente.
+ */
+const ROTAS_DO_DONO_TESTE = ['obrigacoes/salvar', 'obrigacoes/pagar', 'obrigacoes/excluir'];
+
+teste('Rotas: o cliente só grava a avaliação, as obrigações da PRÓPRIA empresa e o cadastro; todo o resto é do contador', function () {
     // As rotas públicas (entrar e criar conta) também aceitam POST sem login, por definição.
-    $permitidasAoCliente = ['auth/login', 'auth/logout', 'avaliacoes/salvar', 'cadastro/salvar'];
+    $permitidasAoCliente = array_merge(['auth/login', 'auth/logout', 'avaliacoes/salvar', 'cadastro/salvar'], ROTAS_DO_DONO_TESTE);
     foreach (rotasTeste() as $rota => $porMetodo) {
         if (!isset($porMetodo['POST'])) {
             continue;
@@ -87,4 +94,27 @@ teste('Rotas: o cliente só consegue gravar a própria avaliação (e sair); tod
 teste('Rotas: rota sem nível de acesso declarado vale "logado" (seguro por padrão)', function () {
     $r = new ReflectionClass(App\Core\Router::class);
     afirmarVerdadeiro(str_contains((string) file_get_contents($r->getFileName()), "?? 'logado'"));
+});
+
+teste('Rotas: criar, pagar e excluir obrigação exigem login (não só contador) e o formulário também', function () {
+    $rotas = rotasTeste();
+    foreach (ROTAS_DO_DONO_TESTE as $rota) {
+        afirmarIgual('logado', $rotas[$rota]['POST'][2] ?? 'logado', $rota);
+    }
+    afirmarIgual('logado', $rotas['obrigacoes/criar']['GET'][2] ?? 'logado');
+    afirmarIgual(['POST'], array_keys($rotas['obrigacoes/pagar']));
+    afirmarIgual(['POST'], array_keys($rotas['obrigacoes/excluir']));
+});
+
+teste('Rotas: o controller de obrigações confere a propriedade da empresa em TODA ação que o dono pode usar', function () {
+    // Armadilha de regressão: como a rota deixou de ser só do contador, a única barreira contra um cliente mexer na
+    // obrigação de OUTRA empresa é o Guarda::exigirEmpresa dentro do controller. Se alguém o remover, este teste falha.
+    $codigo = (string) file_get_contents(RAIZ . '/app/Controllers/ObrigacaoController.php');
+    afirmarVerdadeiro(substr_count($codigo, 'Guarda::exigirEmpresa(') >= 4, 'criar, salvar, pagar e excluir precisam checar o dono');
+});
+
+teste('Rotas: a simulação do termômetro é só leitura (GET) e exige login', function () {
+    $rotas = rotasTeste();
+    afirmarIgual(['GET'], array_keys($rotas['termometro/simular']));
+    afirmarIgual('logado', $rotas['termometro/simular']['GET'][2] ?? 'logado');
 });

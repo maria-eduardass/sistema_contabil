@@ -15,17 +15,30 @@ use App\Models\Obrigacao;
 use App\Models\TipoObrigacao;
 use App\Services\MensagemCobranca;
 use App\Services\RegraDeNegocio;
+use App\Services\SimulacaoTermometro;
 use App\Services\StatusService;
+use App\Services\TermometroEmpresa;
 use App\Services\ValidadorObrigacao;
 use DateTimeImmutable;
 use PDOException;
 
+/**
+ * Obrigações fiscais de uma empresa.
+ *
+ * QUEM PODE O QUÊ: o contador age em qualquer empresa; o DONO da empresa (cliente) cria, paga e exclui as obrigações
+ * da PRÓPRIA empresa e de nenhuma outra. As rotas são "logado" (não "contador"), então a única barreira contra mexer
+ * na empresa de outra pessoa é o Guarda::exigirEmpresa chamado AQUI, em toda ação, antes de consultar o banco.
+ * (Um teste em RotasTeste confere que essas chamadas continuam existindo.)
+ *
+ * Toda ação que muda dados termina dizendo como o termômetro mudou ("foi de 26% para 87%"), para a pessoa ver a
+ * ligação entre o que ela fez e o risco. O cálculo vem do mesmo serviço do termômetro de verdade.
+ */
 final class ObrigacaoController
 {
     private const CAMPOS = ['tipo_obrigacao_id', 'competencia', 'data_vencimento', 'valor', 'observacao'];
     private const MYSQL_DUPLICADO = 1062;
 
-    /** Contador vê qualquer empresa; cliente, só a própria (conferido antes de consultar o banco). */
+    /** Lista da empresa, com o termômetro no topo. Contador vê qualquer uma; o dono, só a sua. */
     public function index(Request $req): void
     {
         $id = $req->getInt('empresa_id');
@@ -37,10 +50,10 @@ final class ObrigacaoController
         $this->exibirLista($id);
     }
 
-    /** Registra o pagamento (só contador). A empresa vem da própria obrigação, nunca do formulário. */
+    /** Registra o pagamento. A empresa vem da própria obrigação, nunca do formulário. */
     public function pagar(Request $req): void
     {
-        $obrigacao = $this->obrigacaoOu404($req->postInt('id'));
+        $obrigacao = $this->obrigacaoDoUsuarioOu404($req->postInt('id'));
         $this->executarAcao(
             (int) $obrigacao['empresa_id'],
             'Pagamento registrado.',
@@ -50,7 +63,7 @@ final class ObrigacaoController
 
     public function excluir(Request $req): void
     {
-        $obrigacao = $this->obrigacaoOu404($req->postInt('id'));
+        $obrigacao = $this->obrigacaoDoUsuarioOu404($req->postInt('id'));
         $this->executarAcao(
             (int) $obrigacao['empresa_id'],
             'Obrigação excluída.',
@@ -58,12 +71,71 @@ final class ObrigacaoController
         );
     }
 
+    /** Formulário de nova obrigação, com a prévia do termômetro (assets/js/obrigacao-form.js). */
+    public function criar(Request $req): void
+    {
+        $empresaId = $req->getInt('empresa_id');
+        if ($empresaId === null) {
+            throw new HttpException(404);
+        }
+        Guarda::exigirEmpresa(Auth::usuario(), $empresaId); // dono só da própria empresa; contador de qualquer uma
+
+        $this->formulario(200, $this->empresaAtivaOu404($empresaId), array_fill_keys(self::CAMPOS, ''), []);
+    }
+
+    public function salvar(Request $req): void
+    {
+        $empresaId = $req->postInt('empresa_id');
+        if ($empresaId === null) {
+            throw new HttpException(404);
+        }
+        // O id da empresa vem do formulário, então ele PRECISA ser conferido: sem isso, um cliente trocaria o número
+        // no HTML e cadastraria obrigações na empresa de outra pessoa.
+        Guarda::exigirEmpresa(Auth::usuario(), $empresaId);
+
+        $empresa = $this->empresaAtivaOu404($empresaId);
+        $modelo = new Obrigacao(Database::conexao());
+
+        $entrada = [];
+        foreach (self::CAMPOS as $campo) {
+            $entrada[$campo] = $req->post($campo) ?? '';
+        }
+        $tiposValidos = array_map('intval', array_column((new TipoObrigacao(Database::conexao()))->listar(), 'id'));
+        $r = ValidadorObrigacao::validar($entrada, $tiposValidos, new DateTimeImmutable());
+        $erros = $r['erros'];
+        $dados = ['empresa_id' => $empresaId] + $r['dados'];
+
+        $status = 422;
+        if ($erros === [] && $modelo->existe($empresaId, $dados['tipo_obrigacao_id'], $dados['competencia'])) {
+            $erros['competencia'] = $this->mensagemDuplicada();
+            $status = 409;
+        }
+
+        if ($erros === []) {
+            try {
+                $antes = $this->termometro($empresaId);
+                $modelo->criar($dados);
+                Flash::definir('sucesso', 'Obrigação cadastrada. ' . SimulacaoTermometro::resumoImpacto($antes, $this->termometro($empresaId)));
+                redirecionar('obrigacoes/index', ['empresa_id' => $empresaId]);
+            } catch (PDOException $e) {
+                // Corrida entre dois cadastros iguais: o UNIQUE do banco decide. Outros erros sobem (500).
+                if (($e->errorInfo[1] ?? 0) !== self::MYSQL_DUPLICADO) {
+                    throw $e;
+                }
+                $erros['competencia'] = $this->mensagemDuplicada();
+                $status = 409;
+            }
+        }
+        $this->formulario($status, $empresa, $entrada, $erros);
+    }
+
     /**
-     * Roda a ação. Sucesso: mensagem + redirect (POST -> GET). Regra violada: mostra a lista de
-     * novo com o status HTTP da regra (409/422) e a mensagem de erro.
+     * Roda a ação. Sucesso: mensagem (com o efeito no termômetro) + redirect (POST -> GET). Regra violada:
+     * mostra a lista de novo com o status HTTP da regra (409/422) e a mensagem de erro.
      */
     private function executarAcao(int $empresaId, string $sucesso, callable $acao): void
     {
+        $antes = $this->termometro($empresaId);
         try {
             $acao();
         } catch (RegraDeNegocio $e) {
@@ -72,7 +144,7 @@ final class ObrigacaoController
             $this->exibirLista($empresaId);
             return;
         }
-        Flash::definir('sucesso', $sucesso);
+        Flash::definir('sucesso', $sucesso . ' ' . SimulacaoTermometro::resumoImpacto($antes, $this->termometro($empresaId)));
         redirecionar('obrigacoes/index', ['empresa_id' => $empresaId]);
     }
 
@@ -94,7 +166,15 @@ final class ObrigacaoController
             'empresa' => $empresa,
             'obrigacoes' => $obrigacoes,
             'ehContador' => $ehContador,
+            'podeAgir' => (int) $empresa['ativa'] === 1, // empresa inativa só consulta; não recebe nem altera guias
+            'scripts' => ['assets/js/termometro.js'],
         ]);
+    }
+
+    /** O termômetro atual da empresa (mesmo cálculo da tela e da API), para comparar antes e depois de uma ação. */
+    private function termometro(int $empresaId): array
+    {
+        return TermometroEmpresa::montar((new Obrigacao(Database::conexao()))->listarPorEmpresa($empresaId), new DateTimeImmutable());
     }
 
     private function servico(): StatusService
@@ -102,58 +182,23 @@ final class ObrigacaoController
         return new StatusService(new Obrigacao(Database::conexao()));
     }
 
-    /** @return array<string,mixed> */
-    private function obrigacaoOu404(?int $id): array
+    /**
+     * Busca a obrigação E confere que o usuário pode mexer nela. Para o dono, uma obrigação que não existe e uma que é
+     * de outra empresa dão o MESMO 403: assim ninguém descobre, testando ids, quais obrigações existem em outras empresas.
+     * O contador recebe 404 para o que não existe (ele pode ver tudo, então não há o que esconder).
+     *
+     * @return array<string,mixed>
+     */
+    private function obrigacaoDoUsuarioOu404(?int $id): array
     {
+        $usuario = Auth::usuario();
         $obrigacao = $id === null ? null : (new Obrigacao(Database::conexao()))->buscar($id);
         if ($obrigacao === null) {
-            throw new HttpException(404);
+            throw new HttpException($usuario['perfil'] === 'contador' ? 404 : 403);
         }
+        Guarda::exigirEmpresa($usuario, (int) $obrigacao['empresa_id']);
+
         return $obrigacao;
-    }
-
-    public function criar(Request $req): void
-    {
-        $empresa = $this->empresaAtivaOu404($req->getInt('empresa_id'));
-        $this->formulario(200, $empresa, array_fill_keys(self::CAMPOS, ''), []);
-    }
-
-    public function salvar(Request $req): void
-    {
-        $empresa = $this->empresaAtivaOu404($req->postInt('empresa_id'));
-        $empresaId = (int) $empresa['id'];
-        $modelo = new Obrigacao(Database::conexao());
-
-        $entrada = [];
-        foreach (self::CAMPOS as $campo) {
-            $entrada[$campo] = $req->post($campo) ?? '';
-        }
-        $tiposValidos = array_map('intval', array_column((new TipoObrigacao(Database::conexao()))->listar(), 'id'));
-        $r = ValidadorObrigacao::validar($entrada, $tiposValidos, new DateTimeImmutable());
-        $erros = $r['erros'];
-        $dados = ['empresa_id' => $empresaId] + $r['dados'];
-
-        $status = 422;
-        if ($erros === [] && $modelo->existe($empresaId, $dados['tipo_obrigacao_id'], $dados['competencia'])) {
-            $erros['competencia'] = $this->mensagemDuplicada();
-            $status = 409;
-        }
-
-        if ($erros === []) {
-            try {
-                $modelo->criar($dados);
-                Flash::definir('sucesso', 'Obrigação cadastrada com sucesso.');
-                redirecionar('obrigacoes/index', ['empresa_id' => $empresaId]);
-            } catch (PDOException $e) {
-                // Corrida entre dois cadastros iguais: o UNIQUE do banco decide. Outros erros sobem (500).
-                if (($e->errorInfo[1] ?? 0) !== self::MYSQL_DUPLICADO) {
-                    throw $e;
-                }
-                $erros['competencia'] = $this->mensagemDuplicada();
-                $status = 409;
-            }
-        }
-        $this->formulario($status, $empresa, $entrada, $erros);
     }
 
     private function mensagemDuplicada(): string
@@ -195,6 +240,7 @@ final class ObrigacaoController
             'valores' => $valores,
             'erros' => $erros,
             'tipos' => (new TipoObrigacao(Database::conexao()))->listar(),
+            'scripts' => ['assets/js/obrigacao-form.js'],
         ]);
     }
 }

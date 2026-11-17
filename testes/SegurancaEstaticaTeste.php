@@ -35,7 +35,7 @@ teste('Estática: toda saída <?= das views é escapada ou está na lista revisa
         '/^(icone|seloStatus|seloFaixa)\(/',
         '/^e\(/', '/^\(int\) /', '/^(\\\\App\\\\Core\\\\)?Csrf::campo\(\)$/',
         '/^\$(n|nota)$/', '/^\$posicao \+ 1$/', '/^\$(erro|classe)\(/', "/^str_replace\('form-control'/",
-        '/^max\(1, \(int\)/', '/^\$conteudo\b/', '/^\$ehContador \? \d : \d$/', // colspan: só números fixos
+        '/^max\(1, \(int\)/', '/^\$conteudo\b/', '/^\$(ehContador|podeAgir) \? \d : \d$/', // colspan: só números fixos
         "/^\\\$valores\['tipo_obrigacao_id'\] === \(string\) \\\$t\['id'\] \? 'selected' : ''$/",
         "/^\\\$valores\['regime_tributario'\] === \\\$chave \? 'selected' : ''$/",
         "/^\\\$resumo\['total'\] === 1 \? 'avaliação' : 'avaliações'$/",

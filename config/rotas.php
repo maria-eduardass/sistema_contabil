@@ -43,10 +43,12 @@ return [
     'empresas/inativar' => ['POST' => [EmpresaController::class, 'inativar', 'contador']],
     // Lista: contador ou cliente da empresa (conferido no controller). Cadastro: só contador.
     'obrigacoes/index' => ['GET' => [ObrigacaoController::class, 'index', 'logado']],
-    'obrigacoes/criar' => ['GET' => [ObrigacaoController::class, 'criar', 'contador']],
-    'obrigacoes/salvar' => ['POST' => [ObrigacaoController::class, 'salvar', 'contador']],
-    'obrigacoes/pagar' => ['POST' => [ObrigacaoController::class, 'pagar', 'contador']],
-    'obrigacoes/excluir' => ['POST' => [ObrigacaoController::class, 'excluir', 'contador']],
+    // Criar, pagar e excluir: o contador em qualquer empresa e o DONO só na própria. Por isso são "logado": a conferência
+    // de propriedade é feita dentro do controller (Guarda::exigirEmpresa), e um teste garante que ela continua lá.
+    'obrigacoes/criar' => ['GET' => [ObrigacaoController::class, 'criar', 'logado']],
+    'obrigacoes/salvar' => ['POST' => [ObrigacaoController::class, 'salvar', 'logado']],
+    'obrigacoes/pagar' => ['POST' => [ObrigacaoController::class, 'pagar', 'logado']],
+    'obrigacoes/excluir' => ['POST' => [ObrigacaoController::class, 'excluir', 'logado']],
 
     // Qualquer usuário logado avalia (via modal/fetch); só o contador vê os resultados.
     'avaliacoes/salvar' => ['POST' => [AvaliacaoController::class, 'salvar', 'logado']],
@@ -54,6 +56,8 @@ return [
 
     // JSON do velocímetro: contador ou cliente da empresa (conferido no controller).
     'termometro/json' => ['GET' => [TermometroController::class, 'json', 'logado']],
+    // Prévia do termômetro no formulário de nova obrigação (só leitura; o dono só vê a própria empresa).
+    'termometro/simular' => ['GET' => [TermometroController::class, 'simular', 'logado']],
 
     'usuarios/criar' => ['GET' => [UsuarioController::class, 'criar', 'contador']],
     'usuarios/salvar' => ['POST' => [UsuarioController::class, 'salvar', 'contador']],

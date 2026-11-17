@@ -16,9 +16,14 @@ $prazo = static function (int $dias): string {
     };
 };
 ?>
-<div class="mb-4">
-    <h1 class="h3 m-0">Olá, <?= e($usuario['nome']) ?>!</h1>
-    <div class="text-muted"><?= $empresa !== null ? e($empresa['razao_social']) : '' ?></div>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+    <div>
+        <h1 class="h3 m-0">Olá, <?= e($usuario['nome']) ?>!</h1>
+        <div class="text-muted"><?= $empresa !== null ? e($empresa['razao_social']) : '' ?></div>
+    </div>
+    <?php /* O dono da empresa cadastra as PRÓPRIAS obrigações: é o que faz o termômetro abaixo reagir. A tela de cadastro
+             mostra, antes de salvar, como a guia mudaria o termômetro. */ ?>
+    <a class="btn btn-primary" href="<?= e(url('obrigacoes/criar', ['empresa_id' => (int) $usuario['empresa_id']])) ?>"><?= icone('plus-lg') ?> Nova obrigação</a>
 </div>
 
 <?php /* Sem destaque nos cartões: neste painel o número que lidera a tela é o percentual do velocímetro
@@ -49,7 +54,10 @@ $prazo = static function (int $dias): string {
                 </tr>
             <?php endforeach; ?>
             <?php if ($proximas === []) : ?>
-                <tr><td colspan="4" class="text-center text-muted py-4">Você não tem obrigações em aberto. Tudo em dia!</td></tr>
+                <tr><td colspan="4" class="text-center text-muted py-4">
+                    Você não tem obrigações em aberto. Tudo em dia!
+                    <div class="mt-2"><a href="<?= e(url('obrigacoes/criar', ['empresa_id' => (int) $usuario['empresa_id']])) ?>"><?= icone('plus-lg') ?> Cadastrar uma obrigação para acompanhar</a></div>
+                </td></tr>
             <?php endif; ?>
             </tbody>
         </table>
