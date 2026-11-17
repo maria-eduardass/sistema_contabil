@@ -14,6 +14,7 @@ use App\Core\View;
 
 $usuario = Auth::usuario();
 $rota = (string) ($rotaAtual ?? '');
+$filtro = (string) ($filtro ?? '');
 $itens = [];
 if ($usuario !== null) {
     // [rótulo, ícone, destino, prefixos de rota que deixam o item "ativo"]
@@ -24,9 +25,21 @@ if ($usuario !== null) {
     } else {
         $itens[] = ['Minhas obrigações', 'receipt-cutoff', url('obrigacoes/index', ['empresa_id' => (int) $usuario['empresa_id']]), ['obrigacoes/']];
     }
+    // Filtros: só pagas / só em aberto. Ficam ativos pelo ?filtro= (passado pelo controller), não pelo prefixo da rota.
+    $itens[] = ['Contas pagas', 'check-circle', url('obrigacoes/situacao', ['filtro' => 'pagas']), ['@pagas']];
+    $itens[] = ['Contas em aberto', 'hourglass-split', url('obrigacoes/situacao', ['filtro' => 'abertas']), ['@abertas']];
 }
-$estaAtivo = static function (array $prefixos) use ($rota): bool {
+$estaAtivo = static function (array $prefixos) use ($rota, $filtro): bool {
     foreach ($prefixos as $prefixo) {
+        if ($prefixo[0] === '@') { // item de filtro
+            if ($rota === 'obrigacoes/situacao' && $filtro === substr($prefixo, 1)) {
+                return true;
+            }
+            continue;
+        }
+        if ($rota === 'obrigacoes/situacao') {
+            return false; // a tela de filtro só acende o próprio item
+        }
         if (str_starts_with($rota, $prefixo)) {
             return true;
         }

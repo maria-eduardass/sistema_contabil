@@ -161,4 +161,24 @@ final class Obrigacao
 
         return $stmt->fetchAll();
     }
+
+    /**
+     * Guias pagas ou em aberto (pendente/atrasado), de uma empresa ou de todas as ativas ($empresaId null).
+     * @return list<array<string,mixed>>
+     */
+    public function listarPorSituacao(bool $pagas, ?int $empresaId): array
+    {
+        $sql = "SELECT o.id, o.empresa_id, e.razao_social, t.sigla AS tipo_sigla, o.competencia, o.data_vencimento,
+                        CAST(o.valor * 100 AS UNSIGNED) AS valor_centavos, o.status, o.data_pagamento
+                 FROM obrigacoes o
+                 JOIN tipos_obrigacao t ON t.id = o.tipo_obrigacao_id
+                 JOIN empresas e ON e.id = o.empresa_id
+                 WHERE e.ativa = 1 AND o.status " . ($pagas ? "= 'pago'" : "<> 'pago'") . "
+                   AND (:empresa IS NULL OR o.empresa_id = :empresa2)
+                 ORDER BY " . ($pagas ? "o.data_pagamento DESC" : "o.data_vencimento");
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute(['empresa' => $empresaId, 'empresa2' => $empresaId]);
+
+        return $stmt->fetchAll();
+    }
 }

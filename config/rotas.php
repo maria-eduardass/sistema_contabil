@@ -45,6 +45,7 @@ return [
     'obrigacoes/index' => ['GET' => [ObrigacaoController::class, 'index', 'logado']],
     // Criar, pagar e excluir: o contador em qualquer empresa e o DONO só na própria. Por isso são "logado": a conferência
     // de propriedade é feita dentro do controller (Guarda::exigirEmpresa), e um teste garante que ela continua lá.
+    'obrigacoes/situacao' => ['GET' => [ObrigacaoController::class, 'situacao', 'logado']],
     'obrigacoes/criar' => ['GET' => [ObrigacaoController::class, 'criar', 'logado']],
     'obrigacoes/salvar' => ['POST' => [ObrigacaoController::class, 'salvar', 'logado']],
     'obrigacoes/pagar' => ['POST' => [ObrigacaoController::class, 'pagar', 'logado']],

@@ -50,6 +50,24 @@ final class ObrigacaoController
         $this->exibirLista($id);
     }
 
+    /**
+     * Menu lateral: só as guias pagas (?filtro=pagas) ou só as em aberto (?filtro=abertas). O contador vê todas as empresas
+     * ativas; o cliente, só a própria (a empresa vem da sessão, nunca da URL).
+     */
+    public function situacao(Request $req): void
+    {
+        $pagas = $req->get('filtro') === 'pagas';
+        $usuario = Auth::usuario();
+        $empresaId = $usuario['perfil'] === 'contador' ? null : (int) $usuario['empresa_id'];
+
+        View::exibir('obrigacoes/situacao', [
+            'titulo' => $pagas ? 'Obrigações pagas' : 'Obrigações em aberto',
+            'pagas' => $pagas,
+            'filtro' => $pagas ? 'pagas' : 'abertas',
+            'obrigacoes' => (new Obrigacao(Database::conexao()))->listarPorSituacao($pagas, $empresaId),
+        ]);
+    }
+
     /** Registra o pagamento. A empresa vem da própria obrigação, nunca do formulário. */
     public function pagar(Request $req): void
     {

@@ -85,13 +85,13 @@ teste('Layout: ícones do Bootstrap Icons aparecem no menu e são decorativos (a
 });
 
 // --- Menu por perfil ---
-teste('Layout: contador vê Painel, Empresas e Avaliações', function () {
-    afirmarIgual(['Painel', 'Empresas', 'Avaliações'], menuTeste(layoutTeste(contadorLayoutTeste()))['todos']);
+teste('Layout: contador vê Painel, Empresas e Avaliações e os filtros', function () {
+    afirmarIgual(['Painel', 'Empresas', 'Avaliações', 'Contas pagas', 'Contas em aberto'], menuTeste(layoutTeste(contadorLayoutTeste()))['todos']);
 });
 
-teste('Layout: cliente vê só Painel e Minhas obrigações (da própria empresa)', function () {
+teste('Layout: cliente vê Painel, Minhas obrigações e os filtros (da própria empresa)', function () {
     $html = layoutTeste(clienteLayoutTeste());
-    afirmarIgual(['Painel', 'Minhas obrigações'], menuTeste($html)['todos']);
+    afirmarIgual(['Painel', 'Minhas obrigações', 'Contas pagas', 'Contas em aberto'], menuTeste($html)['todos']);
     afirmarVerdadeiro(preg_match('~obrigacoes/index&amp;empresa_id=1~', $html) === 1);
     afirmarFalso(str_contains($html, 'empresas/index'));
     afirmarFalso(str_contains($html, 'avaliacoes/index'));
@@ -146,4 +146,12 @@ teste('Layout: o menu e a página não usam estilo ou script inline (compatível
         afirmarFalso(preg_match('/\son[a-z]+\s*=/i', $html) === 1, 'handler inline');
         afirmarFalso(preg_match('/<script(?![^>]*\ssrc=)[^>]*>/i', $html) === 1, 'script inline');
     }
+});
+
+teste('Layout: na tela de filtro só o item do filtro fica ativo (Contas pagas)', function () {
+    View::compartilhar('filtro', 'pagas');
+    $html = layoutTeste(contadorLayoutTeste(), 'obrigacoes/situacao');
+    View::compartilhar('filtro', '');
+    afirmarIgual(1, substr_count($html, 'nav-link active'));
+    afirmarVerdadeiro(preg_match('~nav-link active".*?Contas pagas~s', $html) === 1);
 });
