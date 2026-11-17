@@ -1,0 +1,19 @@
+# Proteções de acesso direto. Dependem de mod_rewrite e AllowOverride All (padrão do XAMPP).
+# Para conferir que estão ativas, veja o item "Exposição de arquivos" do checklist no README.
+
+RewriteEngine On
+# Código, configuração, logs, testes e histórico do Git nunca são servidos pela web.
+RewriteRule ^(app|config|storage|testes|\.git)(/|$) - [F,L]
+
+# Segredos, banco e documentação interna.
+<FilesMatch "^(\.env.*|\.gitignore|database\.sql|README\.md)$">
+    Require all denied
+</FilesMatch>
+
+# O executor de testes pode recriar o banco de teste: só abre a partir da própria máquina.
+<Files "testes.php">
+    Require local
+</Files>
+
+# Sem listagem de diretórios (ex.: /assets/).
+Options -Indexes
