@@ -144,7 +144,7 @@ B1=$TMP/b1.txt; r=""; for i in 1 2 3 4 5; do r="$r $(login $B1 contador@fiscalpu
 igual "Sessão-10 5 senhas erradas seguidas, depois a senha CERTA, é bloqueada (429)" "401 401 401 401 401 429" "$(echo $r) $(login $B1 contador@fiscalpulse.test 'Contador@123')"
 
 echo "=== 8. EXPOSIÇÃO DE ARQUIVOS"
-for p in .env .env.example .gitignore database.sql README.md app/Core/Database.php app/ config/rotas.php storage/logs/app.log storage/ testes/NucleoTeste.php testes/ .git/config; do
+for p in .env .env.example .gitignore database.sql migracoes/001_cpf_telefone.sql migracoes/ README.md app/Core/Database.php app/ config/rotas.php storage/logs/app.log storage/ testes/NucleoTeste.php testes/ .git/config; do
   igual "Exposição /$p bloqueado" 403 "$(code "$B/$p")"
 done
 igual "Exposição listagem de /assets/ bloqueada" 403 "$(code "$B/assets/")"
@@ -215,8 +215,22 @@ maior0 "Cadastro-19 o contador enxerga a empresa nova no ranking" "$(grep -c 'Em
 r=""; for i in 1 2 3 4 5 6; do r="$r $(cadastrar $TMP/cd7.txt --data-urlencode nome=A)"; done
 igual "Cadastro-20 o 6º envio seguido na mesma sessão é bloqueado (429)" "422 422 422 422 422 429" "$(echo $r)"
 
+LIVRE=(--data-urlencode 'nome=Aluno Livre' --data-urlencode 'email=cad2.teste@padaria.test' --data-urlencode 'razao_social=Escola de Teste Ltda' --data-urlencode regime_tributario=mei)
+igual "Cadastro-21 projeto escolar: senha \"1\", CNPJ de dígito inventado e CPF/telefone qualquer texto são aceitos (302)" 302 "$(cadastrar $TMP/cd8.txt "${LIVRE[@]}" --data-urlencode senha=1 --data-urlencode senha_confirmacao=1 --data-urlencode cnpj=22222222222222 --data-urlencode 'cpf=<script>alert(1)</script>' --data-urlencode 'telefone=abc ???')"
+igual "Cadastro-22 CPF e telefone foram gravados exatamente como digitados (a defesa é escapar na saída)" "<script>alert(1)</script>|abc ???" "$($SQL "select concat(cpf,'|',telefone) from usuarios where email='cad2.teste@padaria.test'")"
+EID2=$($SQL "select empresa_id from usuarios where email='cad2.teste@padaria.test'")
+get "$CJ" "empresas/ver&id=$EID2" >/dev/null
+zero "Cadastro-23 o contador abre a empresa e o <script> do CPF NÃO executa" "$(grep -c '<script>alert(1)' $TMP/pag.html)"
+maior0 "Cadastro-23b o CPF aparece escapado (&lt;script&gt;) para o contador" "$(grep -c '&lt;script&gt;alert(1)' $TMP/pag.html)"
+igual "Cadastro-24 a conta criada com senha \"1\" entra (302) e a senha errada não (401)" "302 401" "$(login $TMP/cd9.txt cad2.teste@padaria.test 1) $(login $TMP/cd10.txt cad2.teste@padaria.test 2)"
+igual "Cadastro-25 CNPJ com poucos números é recusado mesmo no modo livre (422)" 422 "$(cadastrar $TMP/cd11.txt "${LIVRE[@]}" --data-urlencode 'email=cad3.teste@padaria.test' --data-urlencode senha=1 --data-urlencode senha_confirmacao=1 --data-urlencode cnpj=12345)"
+igual "Cadastro-26 senha vazia é recusada (422)" 422 "$(cadastrar $TMP/cd12.txt "${LIVRE[@]}" --data-urlencode 'email=cad3.teste@padaria.test' --data-urlencode senha= --data-urlencode senha_confirmacao= --data-urlencode cnpj=77777777777777)"
+igual "Cadastro-27 CPF acima de 30 caracteres é recusado (422), sem erro de banco" 422 "$(cadastrar $TMP/cd13.txt "${LIVRE[@]}" --data-urlencode 'email=cad3.teste@padaria.test' --data-urlencode senha=1 --data-urlencode senha_confirmacao=1 --data-urlencode cnpj=77777777777777 --data-urlencode "cpf=$(printf '1%.0s' $(seq 1 31))")"
+igual "Cadastro-28 o modo livre vale só no cadastro público: o contador continua exigindo senha forte (422)" 422 "$(post "$CJ" usuarios/salvar --data-urlencode empresa_id=1 --data-urlencode nome=Fraco --data-urlencode email=fraco@x.test --data-urlencode senha=1)"
+igual "Cadastro-29 nada foi criado pelos cadastros recusados" "0" "$($SQL "select count(*) from usuarios where email in ('cad3.teste@padaria.test','fraco@x.test')")"
+
 echo "=== LIMPEZA"
-$SQL "delete from obrigacoes where empresa_id in (select id from empresas where cnpj='45723174000110'); delete from empresas where cnpj='45723174000110'; delete from usuarios where email in ('perfil@x.test', 'cad.teste@padaria.test'); delete from empresas where cnpj='12345678000195'; delete from avaliacoes where id > 1;"
+$SQL "delete from obrigacoes where empresa_id in (select id from empresas where cnpj='45723174000110'); delete from empresas where cnpj='45723174000110'; delete from usuarios where email in ('perfil@x.test', 'cad.teste@padaria.test', 'cad2.teste@padaria.test', 'cad3.teste@padaria.test'); delete from empresas where cnpj in ('12345678000195', '22222222222222', '77777777777777'); delete from avaliacoes where id > 1;"
 echo "banco restaurado (empresas/usuários/obrigações/avaliações): $($SQL 'select count(*) from empresas') $($SQL 'select count(*) from usuarios') $($SQL 'select count(*) from obrigacoes') $($SQL 'select count(*) from avaliacoes')  | empresa 1 ativa=$($SQL 'select ativa from empresas where id=1')  obrigação 1 = $($SQL 'select status from obrigacoes where id=1')"
 rm -rf "$TMP"
 echo
