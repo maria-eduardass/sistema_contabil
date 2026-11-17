@@ -39,7 +39,18 @@ use App\Services\ValidadorEmpresa;
             <ul class="list-group list-group-flush">
                 <?php foreach ($usuarios as $u) : ?>
                     <li class="list-group-item px-0 d-flex justify-content-between">
-                        <span><?= e($u['nome']) ?> <span class="text-muted">· <?= e($u['email']) ?></span></span>
+                        <span>
+                            <?= e($u['nome']) ?> <span class="text-muted">· <?= e($u['email']) ?></span>
+                            <?php /* CPF e telefone são opcionais e livres (cadastro público escolar): só aparecem quando
+                                     existem, sempre escapados, e só para o contador (esta lista é dele). */ ?>
+                            <?php if (($u['cpf'] ?? null) !== null || ($u['telefone'] ?? null) !== null) : ?>
+                                <span class="d-block small text-muted">
+                                    <?php if (($u['cpf'] ?? null) !== null) : ?>CPF: <?= e($u['cpf']) ?><?php endif; ?>
+                                    <?php if (($u['cpf'] ?? null) !== null && ($u['telefone'] ?? null) !== null) : ?> · <?php endif; ?>
+                                    <?php if (($u['telefone'] ?? null) !== null) : ?>Tel.: <?= e($u['telefone']) ?><?php endif; ?>
+                                </span>
+                            <?php endif; ?>
+                        </span>
                         <?= (int) $u['ativo'] === 1 ? '' : '<span class="badge text-bg-secondary">Inativo</span>' ?>
                     </li>
                 <?php endforeach; ?>

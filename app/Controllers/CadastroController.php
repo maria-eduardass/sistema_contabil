@@ -20,7 +20,7 @@ use App\Services\ValidadorEmpresa;
  */
 final class CadastroController
 {
-    private const CAMPOS = ['nome', 'email', 'razao_social', 'cnpj', 'regime_tributario'];
+    private const CAMPOS = ['nome', 'email', 'cpf', 'telefone', 'razao_social', 'cnpj', 'regime_tributario'];
 
     public function formulario(Request $req): void
     {

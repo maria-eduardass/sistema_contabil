@@ -78,3 +78,52 @@ teste('Cadastro (tela): sem estilo, handler ou script inline (compatível com a 
     afirmarFalso(preg_match('/\son[a-z]+\s*=/i', $html) === 1);
     afirmarFalso(preg_match('/<script(?![^>]*\ssrc=)[^>]*>/i', $html) === 1);
 });
+
+// --- CPF e telefone na tela; senha livre ---
+teste('Cadastro (tela): tem os campos opcionais CPF e telefone, e avisa que são opcionais', function () {
+    $html = formCadastroTeste();
+    afirmarVerdadeiro(str_contains($html, 'name="cpf"') && str_contains($html, 'name="telefone"'));
+    afirmarVerdadeiro(preg_match('~for="cpf">[^<]*opcional~', $html) === 1);
+    afirmarVerdadeiro(preg_match('~for="telefone">[^<]*opcional~', $html) === 1);
+    afirmarFalso(preg_match('~name="(cpf|telefone)"[^>]*\srequired~', $html) === 1, 'não são obrigatórios');
+});
+
+teste('Cadastro (tela): CPF e telefone digitados voltam escapados após um erro', function () {
+    $html = formCadastroTeste(['cpf' => '"><script>alert(1)</script>', 'telefone' => '<img src=x onerror=alert(1)>'], ['cnpj' => 'CNPJ inválido.']);
+    afirmarFalso(str_contains($html, '<script>alert(1)') || str_contains($html, '<img src=x'));
+    afirmarVerdadeiro(str_contains($html, '&lt;script&gt;alert(1)'));
+});
+
+teste('Cadastro (tela): o aviso da senha diz que pode ser qualquer uma (projeto escolar)', function () {
+    $html = formCadastroTeste();
+    afirmarVerdadeiro(str_contains($html, 'qualquer senha'));
+    afirmarFalso(str_contains($html, 'letras e números'), 'não exige mais letras e números');
+});
+
+teste('Cadastro (tela): o campo de CNPJ avisa que são 14 números, sem exigir um CNPJ real', function () {
+    $html = formCadastroTeste();
+    afirmarVerdadeiro(str_contains($html, '14 números'));
+});
+
+teste('Empresa (tela do contador): CPF e telefone dos usuários aparecem escapados', function () {
+    $_SESSION = [];
+    $html = View::renderizar('empresas/ver', [
+        'titulo' => 'Empresa', 'ehContador' => true,
+        'empresa' => ['id' => 5, 'razao_social' => 'Loja', 'cnpj' => '12345678000195', 'regime_tributario' => 'mei', 'email_contato' => 'a@b.test', 'ativa' => 1],
+        'usuarios' => [['id' => 9, 'nome' => 'Ana', 'email' => 'ana@x.test', 'ativo' => 1, 'cpf' => '<script>alert(1)</script>', 'telefone' => '(11) 9999']],
+    ], '');
+    afirmarFalso(str_contains($html, '<script>alert(1)'));
+    afirmarVerdadeiro(str_contains($html, '&lt;script&gt;alert(1)'));
+    afirmarVerdadeiro(str_contains($html, '(11) 9999'));
+});
+
+teste('Empresa (tela do contador): usuário sem CPF/telefone não mostra rótulos vazios', function () {
+    $_SESSION = [];
+    $html = View::renderizar('empresas/ver', [
+        'titulo' => 'Empresa', 'ehContador' => true,
+        'empresa' => ['id' => 5, 'razao_social' => 'Loja', 'cnpj' => '12345678000195', 'regime_tributario' => 'mei', 'email_contato' => 'a@b.test', 'ativa' => 1],
+        'usuarios' => [['id' => 9, 'nome' => 'Ana', 'email' => 'ana@x.test', 'ativo' => 1, 'cpf' => null, 'telefone' => null]],
+    ], '');
+    afirmarFalso(str_contains($html, 'CPF:'));
+    afirmarFalso(str_contains($html, 'Tel.:'));
+});

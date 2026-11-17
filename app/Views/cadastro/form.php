@@ -5,7 +5,7 @@ use App\Core\Csrf;
  * Tela pública "Criar conta". As senhas nunca voltam preenchidas depois de um erro; os demais valores
  * voltam escapados por e(). O erro "geral" cobre o bloqueio por excesso de tentativas.
  *
- * @var array<string,string> $valores  nome, email, razao_social, cnpj, regime_tributario
+ * @var array<string,string> $valores  nome, email, cpf, telefone, razao_social, cnpj, regime_tributario
  * @var array<string,string> $erros    por campo (+ "geral")
  * @var array<string,string> $regimes  chave => rótulo
  */
@@ -40,11 +40,24 @@ $erro = static fn (string $campo): string => isset($erros[$campo])
                 <input class="<?= $classe('email') ?>" type="email" id="email" name="email" maxlength="150" value="<?= e($valores['email']) ?>" autocomplete="username" required>
                 <?= $erro('email') ?>
             </div>
+            <?php /* CPF e telefone: opcionais e livres (projeto escolar). Sem required e sem máscara obrigatória. */ ?>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label" for="cpf">CPF (opcional)</label>
+                    <input class="<?= $classe('cpf') ?>" id="cpf" name="cpf" maxlength="30" placeholder="000.000.000-00" value="<?= e($valores['cpf']) ?>" autocomplete="off">
+                    <?= $erro('cpf') ?>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label" for="telefone">Telefone (opcional)</label>
+                    <input class="<?= $classe('telefone') ?>" type="tel" id="telefone" name="telefone" maxlength="30" placeholder="(00) 00000-0000" value="<?= e($valores['telefone']) ?>" autocomplete="tel">
+                    <?= $erro('telefone') ?>
+                </div>
+            </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label" for="senha">Senha</label>
                     <input class="<?= $classe('senha') ?>" type="password" id="senha" name="senha" maxlength="72" autocomplete="new-password" required>
-                    <div class="form-text">Mínimo de 8 caracteres, com letras e números.</div>
+                    <div class="form-text">Pode ser qualquer senha (é um projeto escolar).</div>
                     <?= $erro('senha') ?>
                 </div>
                 <div class="col-md-6 mb-3">
@@ -64,6 +77,7 @@ $erro = static fn (string $campo): string => isset($erros[$campo])
                 <div class="col-md-6 mb-3">
                     <label class="form-label" for="cnpj">CNPJ</label>
                     <input class="<?= $classe('cnpj') ?>" id="cnpj" name="cnpj" maxlength="18" inputmode="numeric" placeholder="00.000.000/0000-00" value="<?= e($valores['cnpj']) ?>" required>
+                    <div class="form-text">14 números; pode ser qualquer um.</div>
                     <?= $erro('cnpj') ?>
                 </div>
                 <div class="col-md-6 mb-3">
