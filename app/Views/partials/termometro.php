@@ -1,4 +1,20 @@
-<?php /** @var int $empresaId */ ?>
+<?php
+/**
+ * Painel do Termômetro de Risco Fiscal. O HTML sai SEM dados: assets/js/termometro.js busca o JSON
+ * (rota termometro/json) e preenche, usando os atributos data-* abaixo como ganchos:
+ *   data-url ........ endereço do JSON, já com o empresa_id autorizado pelo servidor
+ *   data-segmentos .. as 4 zonas coloridas do arco; data-escala: os números 0, 30, 60, 80 e 100
+ *   data-ponteiro ... o ponteiro; o JS só troca o atributo transform (rotação de -90 a +90 graus)
+ *   data-valor, data-selo, data-legenda, data-multa, data-itens: percentual, selo da faixa,
+ *   legenda das zonas, multa estimada e a tabela de guias.
+ *
+ * Geometria do SVG: viewBox 240x150 com o centro em (120,120). A tabela de guias é também a versão
+ * acessível do gráfico (quem não enxerga o ponteiro lê os mesmos dados ali).
+ * Nada de estilo ou script inline: a CSP não permite; as cores vêm do app.css.
+ *
+ * @var int $empresaId
+ */
+?>
 <section class="card cartao-termometro mb-4" data-termometro aria-labelledby="titulo-termometro"
          data-url="<?= e(url('termometro/json', ['empresa_id' => $empresaId])) ?>">
     <div class="card-body p-4">

@@ -21,6 +21,8 @@ $prazo = static function (int $dias): string {
     <div class="text-muted"><?= $empresa !== null ? e($empresa['razao_social']) : '' ?></div>
 </div>
 
+<?php /* Sem destaque nos cartões: neste painel o número que lidera a tela é o percentual do velocímetro
+         (só pode haver um por tela). O mesmo ResumoFinanceiro alimenta o painel do contador. */ ?>
 <?php View::parcial('partials/resumo_financeiro', ['financeiro' => $financeiro, 'mes' => $mes, 'destaque' => false]); ?>
 
 <?php View::parcial('partials/termometro', ['empresaId' => (int) $usuario['empresa_id']]); ?>
@@ -41,6 +43,7 @@ $prazo = static function (int $dias): string {
                 <tr>
                     <td><strong><?= e($o['tipo_sigla']) ?></strong><div class="small text-muted"><?= e($o['tipo_nome'] ?? '') ?></div></td>
                     <td><?= e(formatarData($o['data_vencimento'])) ?></td>
+                    <?php /* Selo (estado) + frase de prazo (quantos dias): o selo diz "o que é", o texto diz "há quanto tempo". */ ?>
                     <td><?= seloStatus((string) $o['status']) ?><div class="small text-muted mt-1"><?= e($prazo((int) $o['dias_para_vencer'])) ?></div></td>
                     <td class="text-end text-nowrap"><?= e(formatarCentavos((int) $o['valor_centavos'])) ?></td>
                 </tr>

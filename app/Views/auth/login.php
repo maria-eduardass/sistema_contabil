@@ -1,7 +1,13 @@
 <?php
 use App\Core\Csrf;
 
-/** @var ?string $erro @var string $email */
+/**
+ * Tela de entrada. O layout a desenha na casca pública (centralizada, sem menu lateral).
+ * A mensagem de erro é sempre a mesma para e-mail e senha errados (não revela quais e-mails existem)
+ * e a senha nunca volta preenchida; só o e-mail é reexibido, escapado.
+ *
+ * @var ?string $erro @var string $email
+ */
 ?>
 <div class="auth-marca">
     <span class="marca-icone"><?= icone('activity') ?></span>

@@ -5,6 +5,8 @@ use App\Core\Csrf;
  * @var array<string,mixed> $empresa @var list<array<string,mixed>> $obrigacoes @var bool $ehContador
  * Para o contador cada linha traz também link_whatsapp e valor_atualizado_centavos (MensagemCobranca).
  */
+// Valor padrão e limite do campo de data do pagamento. O navegador só facilita: quem decide é o
+// servidor (StatusService::pagar recusa data futura ou inválida).
 $hoje = date('Y-m-d');
 ?>
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
@@ -30,6 +32,8 @@ $hoje = date('Y-m-d');
                     <td>
                         <strong><?= e($o['tipo_sigla']) ?></strong>
                         <div class="small text-muted"><?= e($o['tipo_nome']) ?></div>
+                        <?php /* A observação mora aqui (e não numa coluna própria): a coluna quase sempre vazia
+                                 roubava largura e empurrava os botões de ação para fora da tela. */ ?>
                         <?php if ($o['observacao'] !== null) : ?>
                             <div class="small fst-italic mt-1"><?= icone('chat-left-text') ?> <?= e($o['observacao']) ?></div>
                         <?php endif; ?>
@@ -38,6 +42,8 @@ $hoje = date('Y-m-d');
                     <td><?= e(formatarData($o['data_vencimento'])) ?></td>
                     <td class="text-end text-nowrap">
                         <?= e(formatarCentavos((int) $o['valor_centavos'])) ?>
+                        <?php /* valor_atualizado_centavos só existe para o contador e só para guia atrasada com valor
+                                 (MensagemCobranca::enriquecerLista). Cliente e guias em dia não recebem a chave. */ ?>
                         <?php if (($o['valor_atualizado_centavos'] ?? null) !== null) : ?>
                             <div class="small text-muted">com multa e juros: <strong><?= e(formatarCentavos((int) $o['valor_atualizado_centavos'])) ?></strong></div>
                         <?php endif; ?>
@@ -51,9 +57,17 @@ $hoje = date('Y-m-d');
                     <?php if ($ehContador) : ?>
                         <td>
                             <?php if ($o['status'] !== 'pago') : ?>
+                                <?php /* Ações em duas linhas compactas para caber ao lado das demais colunas:
+                                         1) cobrar no WhatsApp + excluir; 2) data do pagamento + pagar.
+                                         Pagar e excluir são formulários separados (HTML não permite um dentro do outro),
+                                         por isso ficam lado a lado, cada um com o seu token CSRF. */ ?>
                                 <div class="acoes-coluna">
                                     <div class="acoes-par">
                                         <?php if (($o['link_whatsapp'] ?? null) !== null) : ?>
+                                            <?php /* O link é wa.me com o texto já codificado (MensagemCobranca::linkWhatsApp).
+                                                     Nova aba com noopener e noreferrer: a página aberta não ganha acesso a esta
+                                                     (tabnabbing) nem recebe o endereço do sistema. O aria-label avisa quem usa
+                                                     leitor de tela qual guia é e que abre em outra aba. */ ?>
                                             <a class="btn btn-sm btn-whatsapp flex-grow-1 justify-content-center" href="<?= e($o['link_whatsapp']) ?>" target="_blank" rel="noopener noreferrer"
                                                aria-label="Cobrar a guia <?= e($o['tipo_sigla']) ?> no WhatsApp (abre em nova aba)"><?= icone('whatsapp') ?>Cobrar no WhatsApp</a>
                                         <?php endif; ?>

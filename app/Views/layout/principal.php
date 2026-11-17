@@ -50,6 +50,8 @@ $mensagens = Flash::obter();
 <body class="<?= e($usuario === null ? 'corpo-publico' : 'corpo-app') ?>">
 <?php if ($usuario !== null) : ?>
 <div class="app-shell">
+    <?php /* offcanvas-lg: a partir de 992px o menu é uma barra fixa; abaixo disso vira uma gaveta que abre pelo
+             botão da barra superior (Bootstrap cuida do foco e do fundo escurecido). O visual vem do app.css. */ ?>
     <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="menuLateral" aria-label="Menu principal">
         <div class="sidebar-topo">
             <a class="marca" href="<?= e(url('dashboard/index')) ?>">
@@ -62,6 +64,7 @@ $mensagens = Flash::obter();
         <nav class="sidebar-nav" aria-label="Navegação">
             <ul class="nav flex-column gap-1">
                 <?php foreach ($itens as [$rotulo, $icone, $destino, $prefixos]) : ?>
+                    <?php /* aria-current="page" no item ativo: além da cor, o leitor de tela anuncia onde a pessoa está. */ ?>
                     <?php $ativo = $estaAtivo($prefixos); ?>
                     <li class="nav-item">
                         <a class="<?= e('nav-link' . ($ativo ? ' active' : '')) ?>" href="<?= e($destino) ?>" aria-current="<?= e($ativo ? 'page' : 'false') ?>">
@@ -77,12 +80,14 @@ $mensagens = Flash::obter();
                 <?= icone('chat-heart') ?>Avaliar o sistema
             </button>
             <div class="usuario-card">
+                <?php /* A inicial é só decoração (aria-hidden); o nome completo vem logo ao lado, escapado por e(). */ ?>
                 <div class="usuario-avatar" aria-hidden="true"><?= e(iniciais($usuario['nome'])) ?></div>
                 <div class="usuario-dados">
                     <div class="usuario-nome"><?= e($usuario['nome']) ?></div>
                     <div class="usuario-perfil"><?= e($usuario['perfil'] === 'contador' ? 'Contador' : 'Cliente') ?></div>
                 </div>
             </div>
+            <?php /* Sair é POST com token CSRF (e não um link): um site malicioso não consegue deslogar a pessoa. */ ?>
             <form method="post" action="<?= e(url('auth/logout')) ?>" class="m-0">
                 <?= Csrf::campo() ?>
                 <button class="btn btn-sair" type="submit"><?= icone('box-arrow-right') ?>Sair</button>

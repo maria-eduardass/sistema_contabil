@@ -17,6 +17,8 @@ use App\Core\View;
     <a class="btn btn-primary" href="<?= e(url('empresas/criar')) ?>"><?= icone('plus-lg') ?> Nova empresa</a>
 </div>
 
+<?php /* Aqui o número de destaque da tela (um só, em 48px ou mais) é o valor em atraso: é o que mais pede
+         ação do contador. Por isso destaque fica ligado; no painel do cliente é o velocímetro que lidera. */ ?>
 <?php View::parcial('partials/resumo_financeiro', ['financeiro' => $financeiro, 'mes' => $mes, 'destaque' => true]); ?>
 
 <div class="card">

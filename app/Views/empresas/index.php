@@ -35,6 +35,8 @@ use App\Services\ValidadorEmpresa;
                     <td><?= e(ValidadorEmpresa::REGIMES[$emp['regime_tributario']] ?? $emp['regime_tributario']) ?></td>
                     <td><?= e($emp['email_contato']) ?></td>
                     <td>
+                        <?php /* Situação com ícone + rótulo (nunca só a cor). Inativa é neutra: a empresa continua no
+                                 banco com todo o histórico; só deixa de entrar no ranking e nos totais. */ ?>
                         <?php if ((int) $emp['ativa'] === 1) : ?>
                             <span class="selo-status selo-status-pago"><?= icone('check-circle-fill') ?>Ativa</span>
                         <?php else : ?>
@@ -42,6 +44,8 @@ use App\Services\ValidadorEmpresa;
                         <?php endif; ?>
                     </td>
                     <td>
+                        <?php /* acoes-linha quebra de linha quando falta espaço, em vez de empurrar os botões para fora
+                                 da tabela (a lateral fixa reduziu a largura útil). */ ?>
                         <div class="acoes-linha">
                             <a class="btn btn-sm btn-outline-primary" href="<?= e(url('empresas/ver', ['id' => $emp['id']])) ?>"><?= icone('eye') ?> Ver</a>
                             <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('empresas/editar', ['id' => $emp['id']])) ?>"><?= icone('pencil-square') ?> Editar</a>

@@ -37,7 +37,9 @@ final class DashboardController
         $abertas = $obrigacoes->listarEmAbertoDeEmpresasAtivas();
         $ranking = RankingRisco::montar((new Empresa($pdo))->listarAtivas(), $abertas, $hoje);
 
-        // Todas as guias em aberto (de todas as empresas) + as pagas neste mês.
+        // Tudo o que o resumo financeiro precisa, numa lista só: as guias em aberto de TODAS as empresas
+        // ativas (vêm agrupadas por empresa, daí o array_merge(...) que "achata") + as pagas neste mês.
+        // Duas consultas no total, não importa quantas empresas existam.
         $linhas = array_merge(
             $abertas === [] ? [] : array_merge(...array_values($abertas)),
             $obrigacoes->listarPagasNoPeriodo($hoje->format('Y-m-01'), $hoje->format('Y-m-d'))
