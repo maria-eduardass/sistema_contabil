@@ -57,6 +57,7 @@ body { min-height: 100vh; background: var(--plano); color: var(--tinta); }
 .conteudo { flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: 1.75rem 1.5rem 2rem; }
 .rodape { text-align: center; color: var(--suave); font-size: .8rem; padding: 1rem 0 1.5rem; }
 
+/* Em telas pequenas o .sidebar é uma gaveta (offcanvas do Bootstrap). A partir de 992px ele vira barra fixa. */
 .sidebar {
     --bs-offcanvas-width: 280px;
     --bs-offcanvas-bg: var(--menu-fundo);
@@ -67,6 +68,9 @@ body { min-height: 100vh; background: var(--plano); color: var(--tinta); }
     padding: 1.1rem 1rem;
 }
 @media (min-width: 992px) {
+    /* Os !important abaixo existem porque a classe offcanvas-lg do Bootstrap, nessa largura, força o menu
+       a ficar estático, transparente e com largura automática (também com !important). Sem eles a barra
+       fixa não prevalece. O conteúdo ganha margem esquerda do mesmo tamanho para não ficar por baixo dela. */
     .sidebar {
         position: fixed !important; top: 0; left: 0; bottom: 0; z-index: 1030;
         display: flex !important; flex-direction: column;
@@ -156,7 +160,10 @@ body { min-height: 100vh; background: var(--plano); color: var(--tinta); }
 .btn-whatsapp:hover, .btn-whatsapp:focus-visible { background: #0e7a6e; border-color: #0e7a6e; color: #fff; }
 .btn-whatsapp .bi { font-size: 1rem; }
 
-/* ---------- Selos de status: fundo suave + ícone colorido + rótulo em tinta ---------- */
+/* ---------- Selos de status: fundo suave + ícone colorido + rótulo em tinta ----------
+   O significado nunca depende só da cor: o ícone muda por estado (check, relógio, triângulo, octógono)
+   e o rótulo sempre aparece. O texto fica em tinta escura para manter o contraste; a cor do estado vai só
+   no ícone e no fundo suave. As mesmas classes servem aos status da guia e às faixas do termômetro. */
 .selo-status {
     display: inline-flex; align-items: center; gap: .38rem; padding: .22rem .65rem; border-radius: 999px;
     font-size: .78rem; font-weight: 650; line-height: 1.3; color: var(--tinta); background: var(--neutro-suave); white-space: nowrap;
@@ -171,7 +178,9 @@ body { min-height: 100vh; background: var(--plano); color: var(--tinta); }
 .selo-status-atrasado, .selo-faixa-critico { background: var(--critico-suave); }
 .selo-status-atrasado .bi, .selo-faixa-critico .bi { color: var(--critico); }
 
-/* ---------- Cartões de métrica (KPI): rótulo, valor, nota ---------- */
+/* ---------- Cartões de métrica (KPI): rótulo, valor, nota ----------
+   Valor em fonte sans com algarismos proporcionais (os tabulares ficam para colunas de tabela).
+   O tom (critico, alerta, bom, serio) só pinta o ícone; o número continua em tinta. */
 .metrica {
     position: relative; height: 100%; padding: 1.15rem 1.25rem 1.1rem; background: var(--superficie);
     border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra);
@@ -198,7 +207,8 @@ body { min-height: 100vh; background: var(--plano); color: var(--tinta); }
 .zona-atencao { stroke: var(--alerta); }
 .zona-alto { stroke: var(--serio); }
 .zona-critico { stroke: var(--critico); }
-.zona-apagada { opacity: .28; }                       /* só a zona atual fica forte; as outras recuam */
+.zona-apagada { opacity: .28; }                       /* só a zona atual fica forte; as outras recuam (ênfase) */
+/* O ponteiro e o miolo usam a cor da tinta, não a do status: a cor do dado fica no arco e no selo. */
 .escala-texto { fill: var(--suave); font-size: 9px; font-weight: 600; }
 .ponteiro { fill: var(--tinta); }
 .ponteiro-hub { fill: var(--tinta); stroke: var(--superficie); stroke-width: 2; }
@@ -233,6 +243,8 @@ body { min-height: 100vh; background: var(--plano); color: var(--tinta); }
 .texto-comentario { white-space: pre-line; overflow-wrap: anywhere; } /* respeita quebras de linha e textos longos */
 
 /* ---------- Pequenos ajustes ---------- */
+/* acoes-linha: botões que quebram de linha quando falta espaço. acoes-coluna: duas linhas fixas (usada na lista de
+   obrigações, que tem mais ações que cabem lado a lado ao lado das outras colunas). */
 .acoes-linha { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: flex-end; align-items: center; }
 .acoes-coluna { display: flex; flex-direction: column; gap: .4rem; align-items: stretch; min-width: 13rem; }
 .acoes-coluna .acoes-par { display: flex; gap: .4rem; align-items: center; justify-content: flex-end; }
