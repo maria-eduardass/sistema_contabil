@@ -27,6 +27,9 @@ Requisitos: XAMPP com **PHP 8.2+**, Apache (com `mod_rewrite` e `AllowOverride A
    (esconde mensagens de erro do PHP; os detalhes vão só para `storage/logs/`).
 5. Abra **http://localhost/sistema_contabil/**.
 
+> **Já tinha importado o banco antes do CPF/telefone?** Rode `migracoes/001_cpf_telefone.sql` no phpMyAdmin (aba SQL).
+> Ele só acrescenta duas colunas opcionais, pode ser repetido e não apaga nada. Quem importar o `database.sql` atual já as tem.
+
 ### Usuários de teste
 
 | Perfil | E-mail | Senha | O que vê |
@@ -47,8 +50,9 @@ As datas do seed são relativas a "hoje", então a demonstração sempre mostra 
    os cartões e o ranking mudam.
 4. **Empresas → Nova empresa**, depois **Novo usuário** na página da empresa: crie um cliente e entre com ele.
 5. Como **cliente**: veja o termômetro e as próximas obrigações; tente abrir a empresa de outro cliente (**403**).
-6. Na tela de entrada, **Criar conta**: cadastre uma empresa nova (use um CNPJ válido que ainda não exista, p. ex. `12.345.678/0001-95`) e
-   um acesso de cliente; você já entra logado e só enxerga a empresa que criou. O contador passa a vê-la no ranking.
+6. Na tela de entrada, **Criar conta**: cadastre uma empresa nova (qualquer CNPJ de 14 números que ainda não exista) e um acesso de
+   cliente, com CPF e telefone opcionais. **Neste cadastro (projeto escolar) a senha e os números aceitam qualquer coisa.** Você já entra
+   logado e só enxerga a empresa que criou; o contador passa a vê-la no ranking e, na página da empresa, vê o CPF e o telefone informados.
 7. **Avaliar o sistema** (botão no rodapé do menu lateral): nota de 1 a 5 e comentário — o contador vê em **Avaliações**.
 
 ---
@@ -125,8 +129,8 @@ em banco nem em relógio global ("hoje" é injetado) —, o que permite testá-l
 ## 4. Testes
 
 ```powershell
-C:\xampp\php\php.exe testes.php                  # 251 testes unitários (não precisam de banco)
-C:\xampp\php\php.exe testes.php --integracao     # + 73 de integração = 324 (usam o banco fiscalpulse_teste)
+C:\xampp\php\php.exe testes.php                  # 269 testes unitários (não precisam de banco)
+C:\xampp\php\php.exe testes.php --integracao     # + 82 de integração = 351 (usam o banco fiscalpulse_teste)
 # ou no navegador (somente da própria máquina): http://localhost/sistema_contabil/testes.php
 Get-ChildItem -Recurse -Filter *.php | ForEach-Object { C:\xampp\php\php.exe -l $_.FullName }   # linter
 ```
@@ -138,10 +142,10 @@ e sai com código 1 se algo falhar. Os testes de integração **recriam** o banc
 | Tipo | Casos | Suítes |
 |---|---|---|
 | Regra de negócio pura (score, multa, termômetro da empresa, ranking, próximas, média das avaliações, resumo financeiro, mensagem de cobrança) | 99 | `TermometroRisco` 23, `MultaService` 12, `TermometroEmpresa` 13, `RankingRisco` 8, `ProximasObrigacoes` 6, `AvaliacaoResumo` 5, `ResumoFinanceiro` 13, `MensagemCobranca` 19 |
-| Validação (CNPJ, valor BR, datas, e-mail, senha, formulários, cadastro) | 54 | `Validator` 14, `ValidadorEmpresa` 7, `ValidadorUsuario` 7, `ValidadorObrigacao` 9, `ValidadorAvaliacao` 7, `ValidadorCadastro` 10 |
+| Validação (CNPJ, valor BR, datas, e-mail, senha, formulários, cadastro) | 66 | `Validator` 14, `ValidadorEmpresa` 9, `ValidadorUsuario` 9, `ValidadorObrigacao` 9, `ValidadorAvaliacao` 7, `ValidadorCadastro` 18 |
 | Segurança, sem banco (CSRF, login, sessão, acesso por perfil/empresa, cabeçalhos, política de rotas, varredura estática do código) | 52 | `Csrf` 7, `Auth` 7, `LimiteTentativas` 6, `Guarda` 9, `Cabecalhos` 8, `Rotas` 7, `SegurancaEstatica` 8 |
-| **Integração com o banco** (constraints `UNIQUE`/`FK`/`CHECK`, SQL Injection, status, pagamento, pagos no período, **autocadastro atômico**, modo estrito) | 73 | `Usuario` 12, `Empresa` 11, `Obrigacao` 16, `Avaliacao` 8, `StatusService` 14, `CadastroService` 8, `Database` 4 |
-| Núcleo e interface (escape, URLs, Request, Env, Logger, flash, formatação, selos/ícones, **layout e menu lateral**) | 46 | `Nucleo` 19, `Flash` 4, `Layout` 14, `CadastroView` 9 |
+| **Integração com o banco** (constraints `UNIQUE`/`FK`/`CHECK`, SQL Injection, status, pagamento, pagos no período, **autocadastro atômico**, modo estrito) | 82 | `Usuario` 17, `Empresa` 11, `Obrigacao` 16, `Avaliacao` 8, `StatusService` 14, `CadastroService` 12, `Database` 4 |
+| Núcleo e interface (escape, URLs, Request, Env, Logger, flash, formatação, selos/ícones, **layout e menu lateral**) | 52 | `Nucleo` 19, `Flash` 4, `Layout` 14, `CadastroView` 15 |
 
 A meta de 80% foi tratada como **cobertura por casos**: cada ramo (`if`/`match`) da lógica de negócio tem pelo
 menos um caso (limites 15/16 dias, teto de 100, teto de 20% da multa, 29/30, 59/60, 79/80, entradas inválidas).
@@ -160,7 +164,7 @@ Não há medição automática de cobertura de linhas (exigiria Xdebug/PHPUnit).
 | CSRF | Token de 32 bytes por sessão, `hash_equals`, **exigido em todo POST** (formulário ou cabeçalho), trocado no login |
 | Senhas | `password_hash` (bcrypt) / `password_verify`; mensagem única de erro; `verify` fictício quando o e-mail não existe (não revela quais e-mails existem); limite de 72 bytes |
 | Sessão | ID regenerado no login e no logout, modo estrito, cookie `HttpOnly` + `SameSite=Lax` restrito à pasta do sistema, expira com 30 min de inatividade, bloqueio de 5 min após 5 senhas erradas |
-| Autocadastro (rota pública) | Cria **sempre um cliente** com a **própria empresa nova**, numa transação (nunca sobra empresa sem dono): perfil, situação e empresa não vêm do formulário; CNPJ de empresa que já existe é **recusado** (não dá para "entrar" na empresa de um cliente do escritório); CSRF obrigatório; 5 envios a cada 10 min por sessão |
+| Autocadastro (rota pública) | **Modo escolar: senha e números livres** (só os limites técnicos: 72 bytes de senha, 14 dígitos de CNPJ, 30 caracteres em CPF/telefone). Cria **sempre um cliente** com a **própria empresa nova**, numa transação (nunca sobra empresa sem dono): perfil, situação e empresa não vêm do formulário; CNPJ de empresa que já existe é **recusado** (não dá para "entrar" na empresa de um cliente do escritório); CSRF obrigatório; 5 envios a cada 10 min por sessão |
 | Banco em modo estrito | A conexão liga `STRICT_TRANS_TABLES` por sessão: texto maior que a coluna ou ENUM inválido **dá erro** em vez de ser cortado em silêncio (o MariaDB do XAMPP vem sem isso) |
 | Controle de acesso | 2 camadas: por **rota** (`publico/logado/contador/cliente`, padrão `logado`, nega na dúvida) — as únicas rotas públicas são entrar e criar conta, travadas por um teste e por **objeto** (cliente só acessa a própria empresa; empresa alheia e inexistente dão o mesmo 403) |
 | Mass assignment | Cada validador lê só os campos do formulário; status, perfil, empresa e usuário vêm do servidor/sessão |
@@ -169,7 +173,7 @@ Não há medição automática de cobertura de linhas (exigiria Xdebug/PHPUnit).
 | Arquivos | `.htaccess` bloqueia `app/`, `config/`, `storage/`, `testes/`, `.env`, `.sql`, `.md` e a listagem de pastas; `testes.php` só abre da própria máquina |
 | Cabeçalhos | CSP (scripts, estilos e fontes só do próprio site e do CDN do Bootstrap), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `Cache-Control: no-store`, HSTS (só em HTTPS) |
 
-### Checklist manual executado em 17/11/2026 — 142 de 142 itens passaram (reexecutado após a nova interface e o autocadastro)
+### Checklist manual executado em 17/11/2026 — 154 de 154 itens passaram (reexecutado após a nova interface e o autocadastro)
 
 Roteiro reproduzível: `bash testes/checklist_seguranca.sh` (com Apache e MySQL ligados; usa Git Bash e `curl`).
 Ele cria dados de teste, apaga tudo no final e confere que o banco voltou ao estado do seed.
@@ -186,7 +190,7 @@ Ele cria dados de teste, apaga tudo no final e confere que o banco voltou ao est
 | 8. Exposição de arquivos | 16 | `.env`, `.sql`, `README`, `app/`, `config/`, `storage/logs/`, `testes/`, `.git/`, listagem de `/assets/`: todos 403 |
 | 9. Erros | 9 | 404/405 sem caminhos ou trace; **falha real de banco** (500) sem vazar banco/usuário/SQLSTATE, com o detalhe no log |
 | 10. Cabeçalhos | 11 | CSP e demais cabeçalhos na página e no JSON |
-| 11. Autocadastro | 26 | CSRF, formulário vazio, **CNPJ de cliente existente recusado** (nada é criado), e-mail repetido, XSS e senha que não volta na tela, `perfil`/`empresa_id`/`ativo` forjados ignorados, conta nova presa à própria empresa (403 no resto), logada não recadastra, 6º envio seguido bloqueado (429) |
+| 11. Autocadastro | 36 | CSRF, formulário vazio, **CNPJ de cliente existente recusado** (nada é criado), e-mail repetido, XSS e senha que não volta na tela, `perfil`/`empresa_id`/`ativo` forjados ignorados, conta nova presa à própria empresa (403 no resto), logada não recadastra, 6º envio seguido bloqueado (429); **modo escolar**: senha "1", CNPJ inventado e `<script>` no CPF são aceitos e o texto sai escapado para o contador, enquanto o formulário do contador continua exigindo senha forte |
 
 Além do roteiro, foi feita a **verificação da CSP em navegador real** (Edge): as telas principais, incluindo modal,
 menu lateral, velocímetro e os ícones (fonte carregada do CDN), abriram com **0 violações** e **0 erros de console**.
@@ -198,6 +202,7 @@ foram **bloqueados** pelo navegador. O layout também foi medido em janelas de 4
 - O bloqueio de login é **por sessão**: quem descarta o cookie recomeça a contagem (um controle por IP/e-mail exigiria tabela extra).
 - Sem HTTPS no XAMPP padrão: o cookie `Secure` e o HSTS só entram em ação sob HTTPS. Em produção, use HTTPS.
 - Sem troca/recuperação de senha, 2FA, trilha de auditoria ou CAPTCHA; o contador (ou a própria pessoa, no autocadastro) define a senha inicial.
+- **Senha e números livres no cadastro público** (decisão do projeto escolar): aceita senha de 1 caractere e CNPJ sem dígito verificador, e o CPF e o telefone não são validados. Para produção, troque os dois `false` em `ValidadorCadastro` por `true` e valide CPF/telefone. O CPF é dado pessoal sensível (LGPD): aqui é guardado em texto puro.
 - **Autocadastro aberto:** não há confirmação de e-mail nem aprovação do contador. Alguém pode cadastrar o CNPJ de uma empresa real antes do dono, ou criar empresas em massa (o limite é só por sessão). Em produção, exigiria confirmação de e-mail, CAPTCHA e aprovação.
 - As proteções do `.htaccess` dependem de `AllowOverride All` (padrão do XAMPP); o checklist (categoria 8) confirma que estão ativas.
 - O checklist é um teste de caixa-preta por `curl`, **não** um teste de intrusão profissional.
