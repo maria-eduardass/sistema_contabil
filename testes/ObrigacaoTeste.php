@@ -164,3 +164,33 @@ testeIntegracao('Obrigacao: listarEmAbertoDeEmpresasAtivas ignora empresas inati
         afirmarIgual([1, 2], array_keys((new Obrigacao($pdo))->listarEmAbertoDeEmpresasAtivas()));
     });
 });
+
+// --- Pagamentos do período (resumo financeiro) ---
+testeIntegracao('Obrigacao: listarPagasNoPeriodo traz as pagas (seed: ids 5 e 7) com os campos do resumo', function () {
+    $m = new Obrigacao(bancoDeTeste());
+    $linhas = $m->listarPagasNoPeriodo(date('Y-m-d', strtotime('-60 days')), date('Y-m-d'));
+    afirmarIgual([5, 7], array_map('intval', array_column($linhas, 'id')));
+    foreach (['id', 'empresa_id', 'status', 'data_vencimento', 'data_pagamento', 'valor_centavos'] as $campo) {
+        afirmarVerdadeiro(array_key_exists($campo, $linhas[0]), $campo);
+    }
+    afirmarIgual('pago', $linhas[0]['status']);
+    afirmarIgual(150000, (int) $linhas[1]['valor_centavos']);
+});
+
+testeIntegracao('Obrigacao: listarPagasNoPeriodo é inclusivo nos dois extremos e exclui fora do intervalo', function () {
+    $m = new Obrigacao(bancoDeTeste());
+    $dia = date('Y-m-d', strtotime('-9 days')); // a paga da Clínica (id 7) foi paga neste dia
+    afirmarIgual([7], array_map('intval', array_column($m->listarPagasNoPeriodo($dia, $dia), 'id')));
+    afirmarIgual([], $m->listarPagasNoPeriodo(date('Y-m-d', strtotime('+1 day')), date('Y-m-d', strtotime('+30 days'))));
+});
+
+testeIntegracao('Obrigacao: listarPagasNoPeriodo não traz pendentes nem atrasadas e ignora empresas inativas', function () {
+    comRollbackObrigacaoTeste(function ($pdo) {
+        $m = new Obrigacao($pdo);
+        $de = date('Y-m-d', strtotime('-60 days'));
+        $ate = date('Y-m-d');
+        afirmarVerdadeiro(!in_array('pendente', array_column($m->listarPagasNoPeriodo($de, $ate), 'status'), true));
+        $pdo->exec('UPDATE empresas SET ativa = 0 WHERE id = 3'); // dona da paga id 7
+        afirmarIgual([5], array_map('intval', array_column($m->listarPagasNoPeriodo($de, $ate), 'id')));
+    });
+});

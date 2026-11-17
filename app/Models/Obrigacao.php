@@ -120,6 +120,27 @@ final class Obrigacao
     }
 
     /**
+     * Guias PAGAS (de empresas ativas) com data de pagamento entre $inicio e $fim, inclusive (Y-m-d).
+     * Alimenta o card "pago no mês" do resumo financeiro.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function listarPagasNoPeriodo(string $inicio, string $fim): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT o.id, o.empresa_id, o.status, o.data_vencimento, o.data_pagamento,
+                    CAST(o.valor * 100 AS UNSIGNED) AS valor_centavos
+             FROM obrigacoes o
+             JOIN empresas e ON e.id = o.empresa_id
+             WHERE e.ativa = 1 AND o.status = 'pago' AND o.data_pagamento BETWEEN :inicio AND :fim
+             ORDER BY o.data_pagamento, o.id"
+        );
+        $stmt->execute(['inicio' => $inicio, 'fim' => $fim]);
+
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Em aberto primeiro (por vencimento mais próximo), pagas por último.
      * valor_centavos sai do banco já como inteiro (DECIMAL * 100 é exato), pronto para o MultaService.
      *
