@@ -1,0 +1,41 @@
+/* Estilos próprios do FiscalPulse (o resto vem do Bootstrap). */
+body { min-height: 100vh; }
+
+/* --- Termômetro de Risco Fiscal ---
+   Cores por faixa: baixo (verde), atenção (amarelo), alto (laranja), crítico (vermelho).
+   Estão aqui (e não no JS) para o tema ficar num só arquivo e funcionar com CSP restritiva. */
+.termometro-svg { width: 100%; max-width: 320px; height: auto; }
+.seg { fill: none; stroke-width: 16; }
+.seg-baixo { stroke: #198754; }
+.seg-atencao { stroke: #ffc107; }
+.seg-alto { stroke: #fd7e14; }
+.seg-critico { stroke: #dc3545; }
+.ponteiro { stroke: #212529; stroke-width: 3; stroke-linecap: round; }
+.ponteiro-base { fill: #212529; }
+.termometro-valor { font-size: 2.75rem; font-weight: 700; line-height: 1.1; }
+.termometro-faixa { font-weight: 600; }
+/* Tons mais escuros no texto para manter contraste legível sobre fundo branco. */
+[data-faixa="baixo"] .termometro-valor, [data-faixa="baixo"] .termometro-faixa { color: #146c43; }
+[data-faixa="atencao"] .termometro-valor, [data-faixa="atencao"] .termometro-faixa { color: #8a6500; }
+[data-faixa="alto"] .termometro-valor, [data-faixa="alto"] .termometro-faixa { color: #b85a00; }
+[data-faixa="critico"] .termometro-valor, [data-faixa="critico"] .termometro-faixa { color: #b02a37; }
+
+/* --- Ranking de risco (painel do contador) ---
+   <progress> em vez de <div style="width:..%">: não exige estilo inline, então funciona com CSP restritiva. */
+.barra-risco { width: 100%; max-width: 9rem; height: .65rem; }
+.barra-baixo { accent-color: #198754; }
+.barra-atencao { accent-color: #ffc107; }
+.barra-alto { accent-color: #fd7e14; }
+.barra-critico { accent-color: #dc3545; }
+.selo { font-weight: 600; }
+.selo-baixo { background: #198754; color: #fff; }
+.selo-atencao { background: #ffc107; color: #000; }
+.selo-alto { background: #fd7e14; color: #000; }
+.selo-critico { background: #dc3545; color: #fff; }
+
+.col-risco { min-width: 11rem; }
+
+/* --- Avaliações --- */
+.barra-nota { flex: 1; height: .8rem; accent-color: #c77700; }
+.votos { min-width: 2rem; }
+.texto-comentario { white-space: pre-line; overflow-wrap: anywhere; } /* respeita quebras de linha e textos longos */

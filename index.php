@@ -1,5 +1,10 @@
 <?php
-// Front-controller (placeholder da Tarefa 1; o Router entra na Tarefa 3).
+// Front-controller: único ponto de entrada. Toda a lógica está no Router.
 declare(strict_types=1);
 
-echo 'FiscalPulse: estrutura inicial OK (PHP ' . PHP_VERSION . ')';
+require __DIR__ . '/app/bootstrap.php';
+
+use App\Core\Request;
+use App\Core\Router;
+
+(new Router(require RAIZ . '/config/rotas.php'))->despachar(new Request());
