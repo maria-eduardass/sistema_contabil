@@ -103,7 +103,8 @@ $mensagens = Flash::obter();
         <main class="conteudo">
 <?php else : ?>
 <main class="auth-wrap">
-    <div class="auth-caixa">
+    <?php /* "auth" => "larga" (passado pelo controller) alarga a caixa, para o formulário de cadastro. */ ?>
+    <div class="<?= e('auth-caixa' . (($auth ?? '') === 'larga' ? ' auth-caixa-larga' : '')) ?>">
 <?php endif; ?>
             <?php foreach ($mensagens as $msg) : ?>
                 <div class="<?= e('alert alert-dismissible ' . ($msg['tipo'] === 'sucesso' ? 'alert-success' : 'alert-danger')) ?>" role="alert">

@@ -34,5 +34,9 @@ use App\Core\Csrf;
             </div>
             <button class="btn btn-primary btn-lg w-100" type="submit"><?= icone('box-arrow-in-right') ?> Entrar</button>
         </form>
+
+        <?php /* Quem ainda não tem conta cria a sua (e a própria empresa) na tela pública de cadastro. */ ?>
+        <div class="auth-divisor"><span>Ainda não tem uma conta?</span></div>
+        <a class="btn btn-outline-primary btn-lg w-100" href="<?= e(url('cadastro/novo')) ?>"><?= icone('person-plus') ?> Criar conta</a>
     </div>
 </div>

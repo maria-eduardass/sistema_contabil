@@ -148,7 +148,7 @@ body { min-height: 100vh; background: var(--plano); color: var(--tinta); }
 }
 .table-hover > tbody > tr:hover > * { --bs-table-hover-bg: #f4f7fc; }
 .form-control, .form-select { background-color: #fff; border-color: #d3d2cb; border-radius: 10px; }
-.form-control:focus, .form-select:focus { border-color: #86b6ef; box-shadow: 0 0 0 .22rem rgba(37, 106, 191, .18); }
+.form-control:focus, .form-select:focus { background-color: #fff; border-color: #86b6ef; box-shadow: 0 0 0 .22rem rgba(37, 106, 191, .18); } /* o foco do Bootstrap usa o fundo da página (cinza): mantém branco */
 .btn { border-radius: 10px; font-weight: 500; }
 .btn-primary { --bs-btn-bg: var(--primaria); --bs-btn-border-color: var(--primaria); --bs-btn-hover-bg: var(--primaria-hover); --bs-btn-hover-border-color: var(--primaria-hover); --bs-btn-active-bg: #184f95; --bs-btn-active-border-color: #184f95; --bs-btn-focus-shadow-rgb: 37, 106, 191; }
 .btn-outline-primary { --bs-btn-color: var(--primaria-hover); --bs-btn-border-color: #9ec5f4; --bs-btn-hover-bg: var(--primaria); --bs-btn-hover-border-color: var(--primaria); --bs-btn-active-bg: var(--primaria-hover); }
@@ -252,3 +252,9 @@ body { min-height: 100vh; background: var(--plano); color: var(--tinta); }
 .modal-content { --bs-modal-bg: var(--superficie); border: 0; border-radius: var(--raio); box-shadow: var(--sombra-forte); }
 @media (prefers-reduced-motion: reduce) { .zona, .sidebar .nav-link { transition: none; } }
 @media (max-width: 575.98px) { .metrica-hero .metrica-valor { font-size: 2.4rem; } .conteudo { padding: 1.1rem .9rem 1.5rem; } }
+
+/* ---------- Criar conta (casca pública) ---------- */
+.auth-caixa-larga { max-width: 640px; }
+/* Divisor "Ainda não tem uma conta?": uma linha fina com o texto no meio. */
+.auth-divisor { display: flex; align-items: center; gap: .75rem; margin: 1.35rem 0 1rem; color: var(--tinta-2); font-size: .85rem; }
+.auth-divisor::before, .auth-divisor::after { content: ""; flex: 1; height: 1px; background: var(--grade); }

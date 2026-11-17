@@ -39,20 +39,39 @@ teste('Rotas: ações que alteram dados aceitam SOMENTE POST (nada de GET com ef
     }
 });
 
-teste('Rotas: a única rota pública é o login', function () {
-    $publicas = [];
+/**
+ * Lista REVISADA do que qualquer visitante (sem login) pode acessar: entrar e criar a própria conta.
+ * Acrescentar uma rota pública aqui é uma decisão de segurança consciente, não um efeito colateral.
+ */
+const ROTAS_PUBLICAS_TESTE = [
+    'GET' => ['auth/login', 'cadastro/novo'],
+    'POST' => ['auth/login', 'cadastro/salvar'],
+];
+
+teste('Rotas: as únicas rotas públicas são entrar e criar conta (cada uma no método esperado)', function () {
+    $publicas = ['GET' => [], 'POST' => []];
     foreach (rotasTeste() as $rota => $porMetodo) {
-        foreach ($porMetodo as $entrada) {
+        foreach ($porMetodo as $metodo => $entrada) {
             if (($entrada[2] ?? 'logado') === 'publico') {
-                $publicas[$rota] = true;
+                $publicas[$metodo][] = $rota;
             }
         }
     }
-    afirmarIgual(['auth/login'], array_keys($publicas));
+    sort($publicas['GET']);
+    sort($publicas['POST']);
+    afirmarIgual(ROTAS_PUBLICAS_TESTE['GET'], $publicas['GET']);
+    afirmarIgual(ROTAS_PUBLICAS_TESTE['POST'], $publicas['POST']);
+});
+
+teste('Rotas: o cadastro nunca aceita GET para gravar (só POST) e o formulário é só GET', function () {
+    $rotas = rotasTeste();
+    afirmarIgual(['POST'], array_keys($rotas['cadastro/salvar']));
+    afirmarIgual(['GET'], array_keys($rotas['cadastro/novo']));
 });
 
 teste('Rotas: o cliente só consegue gravar a própria avaliação (e sair); todo o resto é do contador', function () {
-    $permitidasAoCliente = ['auth/login', 'auth/logout', 'avaliacoes/salvar'];
+    // As rotas públicas (entrar e criar conta) também aceitam POST sem login, por definição.
+    $permitidasAoCliente = ['auth/login', 'auth/logout', 'avaliacoes/salvar', 'cadastro/salvar'];
     foreach (rotasTeste() as $rota => $porMetodo) {
         if (!isset($porMetodo['POST'])) {
             continue;

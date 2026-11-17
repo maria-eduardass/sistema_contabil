@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use App\Controllers\AuthController;
 use App\Controllers\AvaliacaoController;
+use App\Controllers\CadastroController;
 use App\Controllers\DashboardController;
 use App\Controllers\EmpresaController;
 use App\Controllers\InicioController;
@@ -24,6 +25,11 @@ return [
         'POST' => [AuthController::class, 'login', 'publico'],
     ],
     'auth/logout' => ['POST' => [AuthController::class, 'logout', 'logado']],
+
+    // Criar conta: públicas de propósito (quem se cadastra ainda não tem login). O POST continua exigindo CSRF
+    // e só cria um CLIENTE com a PRÓPRIA empresa (ver CadastroService).
+    'cadastro/novo' => ['GET' => [CadastroController::class, 'formulario', 'publico']],
+    'cadastro/salvar' => ['POST' => [CadastroController::class, 'salvar', 'publico']],
 
     'dashboard/index' => ['GET' => [DashboardController::class, 'index', 'logado']],
     'dashboard/contador' => ['GET' => [DashboardController::class, 'contador', 'contador']],
