@@ -57,3 +57,17 @@ teste('ValidadorEmpresa: dados só trazem campos válidos mesmo com campos extra
     $r = ValidadorEmpresa::validar(entradaEmpresaTeste(['ativa' => '0', 'id' => '99']));
     afirmarIgual(['razao_social', 'cnpj', 'regime_tributario', 'email_contato'], array_keys($r['dados']));
 });
+
+teste('ValidadorEmpresa: sem conferir o dígito, qualquer CNPJ de 14 números vale (cadastro escolar)', function () {
+    $entrada = entradaEmpresaTeste(['cnpj' => '11.111.111/1111-11']);
+    afirmarVerdadeiro(isset(ValidadorEmpresa::validar($entrada)['erros']['cnpj'])); // padrão: confere o dígito
+    $r = ValidadorEmpresa::validar($entrada, false);
+    afirmarFalso(isset($r['erros']['cnpj']));
+    afirmarIgual('11111111111111', $r['dados']['cnpj']);
+});
+
+teste('ValidadorEmpresa: sem conferir o dígito, o formato (14 números) continua obrigatório', function () {
+    foreach (['123', '1234567890123', 'abc', ''] as $ruim) {
+        afirmarVerdadeiro(isset(ValidadorEmpresa::validar(entradaEmpresaTeste(['cnpj' => $ruim]), false)['erros']['cnpj']), "'$ruim'");
+    }
+});

@@ -42,3 +42,15 @@ teste('ValidadorUsuario: senha acima de 72 bytes é rejeitada (o bcrypt ignorari
 teste('ValidadorUsuario: a senha não é alterada por trim (espaços fazem parte dela)', function () {
     afirmarIgual(' Senha@123 ', ValidadorUsuario::validar(entradaUsuarioTeste(['senha' => ' Senha@123 ']))['dados']['senha']);
 });
+
+teste('ValidadorUsuario: com senha livre (cadastro escolar) qualquer senha não vazia vale; o limite de 72 bytes fica', function () {
+    foreach (['1', 'abc', '12345678'] as $livre) {
+        afirmarFalso(isset(ValidadorUsuario::validar(entradaUsuarioTeste(['senha' => $livre]), false)['erros']['senha']), $livre);
+    }
+    afirmarVerdadeiro(isset(ValidadorUsuario::validar(entradaUsuarioTeste(['senha' => '']), false)['erros']['senha']));
+    afirmarVerdadeiro(isset(ValidadorUsuario::validar(entradaUsuarioTeste(['senha' => str_repeat('a', 73)]), false)['erros']['senha']));
+});
+
+teste('ValidadorUsuario: por padrão a senha continua exigindo 8+ caracteres com letras e números', function () {
+    afirmarVerdadeiro(isset(ValidadorUsuario::validar(entradaUsuarioTeste(['senha' => 'abc']))['erros']['senha']));
+});

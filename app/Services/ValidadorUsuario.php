@@ -16,9 +16,10 @@ final class ValidadorUsuario
 
     /**
      * @param array<string,mixed> $entrada
+     * @param bool $exigirSenhaForte false = qualquer senha não vazia (cadastro público escolar)
      * @return array{dados:array{nome:string,email:string,senha:string},erros:array<string,string>}
      */
-    public static function validar(array $entrada): array
+    public static function validar(array $entrada, bool $exigirSenhaForte = true): array
     {
         $texto = static fn (string $campo): string => is_string($entrada[$campo] ?? null) ? $entrada[$campo] : '';
 
@@ -35,8 +36,10 @@ final class ValidadorUsuario
         if (!Validator::email($dados['email'])) {
             $erros['email'] = 'E-mail inválido.';
         }
-        if (!Validator::senhaForte($dados['senha'])) {
+        if ($exigirSenhaForte && !Validator::senhaForte($dados['senha'])) {
             $erros['senha'] = 'A senha deve ter pelo menos 8 caracteres, com letras e números.';
+        } elseif (!$exigirSenhaForte && $dados['senha'] === '') {
+            $erros['senha'] = 'Informe uma senha.'; // senha livre: qualquer coisa, menos vazia
         } elseif (strlen($dados['senha']) > self::SENHA_MAX_BYTES) {
             $erros['senha'] = 'A senha pode ter no máximo 72 caracteres.';
         }

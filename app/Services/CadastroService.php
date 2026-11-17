@@ -55,7 +55,14 @@ final class CadastroService
                 'regime_tributario' => (string) $dados['regime_tributario'],
                 'email_contato' => (string) $dados['email_contato'],
             ]);
-            $usuarioId = $usuarios->criarCliente($empresaId, (string) $dados['nome'], (string) $dados['email'], (string) $dados['senha']);
+            $usuarioId = $usuarios->criarCliente(
+                $empresaId,
+                (string) $dados['nome'],
+                (string) $dados['email'],
+                (string) $dados['senha'],
+                isset($dados['cpf']) ? (string) $dados['cpf'] : null,       // opcionais, texto livre
+                isset($dados['telefone']) ? (string) $dados['telefone'] : null
+            );
             $pdo->commit();
         } catch (PDOException $e) {
             if ($pdo->inTransaction()) {

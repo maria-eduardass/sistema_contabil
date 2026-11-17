@@ -21,9 +21,10 @@ final class ValidadorEmpresa
 
     /**
      * @param array<string,mixed> $entrada
+     * @param bool $conferirDigitoCnpj false = aceita qualquer sequência de 14 números
      * @return array{dados:array<string,string>,erros:array<string,string>}
      */
-    public static function validar(array $entrada): array
+    public static function validar(array $entrada, bool $conferirDigitoCnpj = true): array
     {
         $texto = static fn (string $campo): string => is_string($entrada[$campo] ?? null) ? trim($entrada[$campo]) : '';
 
@@ -38,8 +39,11 @@ final class ValidadorEmpresa
         if (!Validator::texto($dados['razao_social'], 3, 150)) {
             $erros['razao_social'] = 'Informe a razão social (3 a 150 caracteres).';
         }
-        if (!Validator::cnpj($dados['cnpj'])) {
-            $erros['cnpj'] = 'CNPJ inválido.';
+        // Padrão: confere os dígitos verificadores. O cadastro público (projeto escolar) pede só os 14 números,
+        // porque quase ninguém tem um CNPJ real para testar. O banco exige 14 dígitos de qualquer forma.
+        $cnpjOk = $conferirDigitoCnpj ? Validator::cnpj($dados['cnpj']) : preg_match('/^\d{14}\z/', $dados['cnpj']) === 1;
+        if (!$cnpjOk) {
+            $erros['cnpj'] = $conferirDigitoCnpj ? 'CNPJ inválido.' : 'O CNPJ precisa ter 14 números.';
         }
         if (!array_key_exists($dados['regime_tributario'], self::REGIMES)) {
             $erros['regime_tributario'] = 'Selecione um regime tributário.';

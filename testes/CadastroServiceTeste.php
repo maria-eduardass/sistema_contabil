@@ -128,3 +128,44 @@ testeIntegracao('Cadastro: duas pessoas diferentes com CNPJs diferentes convivem
         afirmarVerdadeiro(isset($b['erros']['cnpj']));
     });
 });
+
+// --- CPF, telefone, senha e CNPJ livres (projeto escolar) ---
+testeIntegracao('Cadastro: grava CPF e telefone da conta quando informados', function () {
+    comLimpezaCadastroTeste(function ($pdo) {
+        $r = CadastroService::cadastrar($pdo, dadosCadastroTeste(['cpf' => '000.000.000-00', 'telefone' => '(11) 90000-0000']));
+        afirmarIgual([], $r['erros']);
+        $linha = $pdo->query("SELECT cpf, telefone FROM usuarios WHERE email = 'maria@padaria.test'")->fetch();
+        afirmarIgual(['000.000.000-00', '(11) 90000-0000'], [$linha['cpf'], $linha['telefone']]);
+    });
+});
+
+testeIntegracao('Cadastro: sem CPF e telefone (opcionais) a conta é criada com null', function () {
+    comLimpezaCadastroTeste(function ($pdo) {
+        CadastroService::cadastrar($pdo, dadosCadastroTeste());
+        $linha = $pdo->query("SELECT cpf, telefone FROM usuarios WHERE email = 'maria@padaria.test'")->fetch();
+        afirmarIgual([null, null], [$linha['cpf'], $linha['telefone']]);
+    });
+});
+
+testeIntegracao('Cadastro: senha qualquer ("1") e CNPJ de dígito falso (22222222222222) funcionam e a pessoa entra', function () {
+    comLimpezaCadastroTeste(function ($pdo) {
+        $pdo->exec("DELETE FROM empresas WHERE cnpj = '22222222222222'");
+        try {
+            $r = CadastroService::cadastrar($pdo, dadosCadastroTeste(['senha' => '1', 'cnpj' => '22222222222222']));
+            afirmarIgual([], $r['erros']);
+            afirmarVerdadeiro((new Usuario($pdo))->autenticar('maria@padaria.test', '1') !== null);
+        } finally {
+            $pdo->exec("DELETE FROM usuarios WHERE email = 'maria@padaria.test'");
+            $pdo->exec("DELETE FROM empresas WHERE cnpj = '22222222222222'");
+        }
+    });
+});
+
+testeIntegracao('Cadastro: texto estranho em CPF/telefone é guardado como veio (a proteção é escapar na saída, não alterar o dado)', function () {
+    comLimpezaCadastroTeste(function ($pdo) {
+        CadastroService::cadastrar($pdo, dadosCadastroTeste(['cpf' => '<b>x</b>', 'telefone' => "'; DROP TABLE usuarios; --"]));
+        $linha = $pdo->query("SELECT cpf, telefone FROM usuarios WHERE email = 'maria@padaria.test'")->fetch();
+        afirmarIgual(['<b>x</b>', "'; DROP TABLE usuarios; --"], [$linha['cpf'], $linha['telefone']]);
+        afirmarVerdadeiro((int) $pdo->query('SELECT COUNT(*) FROM usuarios')->fetchColumn() >= 3);
+    });
+});
