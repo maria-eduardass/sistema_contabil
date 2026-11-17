@@ -24,6 +24,8 @@ CREATE TABLE usuarios (
   empresa_id INT UNSIGNED NULL,
   nome VARCHAR(120) NOT NULL,
   email VARCHAR(150) NOT NULL,
+  cpf VARCHAR(30) NULL,                 -- opcional, texto livre (projeto escolar: sem validação de dígitos)
+  telefone VARCHAR(30) NULL,            -- opcional, texto livre
   senha_hash VARCHAR(255) NOT NULL,
   perfil ENUM('contador','cliente') NOT NULL,
   ativo TINYINT(1) NOT NULL DEFAULT 1,

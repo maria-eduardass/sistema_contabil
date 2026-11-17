@@ -52,27 +52,32 @@ final class Usuario
     /**
      * Cria um usuário do perfil cliente, preso a uma empresa. O hash é aplicado AQUI, para
      * nenhum chamador conseguir gravar senha em texto puro por esquecimento.
+     *
+     * CPF e telefone são opcionais e de texto livre (projeto escolar): vão como a pessoa digitou, sem
+     * validação de dígitos. O limite de 30 caracteres é o da coluna; o banco em modo estrito recusa mais que isso.
      */
-    public function criarCliente(int $empresaId, string $nome, string $email, string $senha): int
+    public function criarCliente(int $empresaId, string $nome, string $email, string $senha, ?string $cpf = null, ?string $telefone = null): int
     {
         $stmt = $this->pdo->prepare(
-            "INSERT INTO usuarios (empresa_id, nome, email, senha_hash, perfil)
-             VALUES (:empresa_id, :nome, :email, :senha_hash, 'cliente')"
+            "INSERT INTO usuarios (empresa_id, nome, email, cpf, telefone, senha_hash, perfil)
+             VALUES (:empresa_id, :nome, :email, :cpf, :telefone, :senha_hash, 'cliente')"
         );
         $stmt->execute([
             'empresa_id' => $empresaId,
             'nome' => $nome,
             'email' => $email,
+            'cpf' => $cpf,
+            'telefone' => $telefone,
             'senha_hash' => password_hash($senha, PASSWORD_DEFAULT),
         ]);
 
         return (int) $this->pdo->lastInsertId();
     }
 
-    /** @return list<array{id:int,nome:string,email:string,ativo:int}> Nunca inclui o hash. */
+    /** @return list<array{id:int,nome:string,email:string,cpf:?string,telefone:?string,ativo:int}> Nunca inclui o hash. */
     public function listarPorEmpresa(int $empresaId): array
     {
-        $stmt = $this->pdo->prepare('SELECT id, nome, email, ativo FROM usuarios WHERE empresa_id = :id ORDER BY nome');
+        $stmt = $this->pdo->prepare('SELECT id, nome, email, cpf, telefone, ativo FROM usuarios WHERE empresa_id = :id ORDER BY nome');
         $stmt->execute(['id' => $empresaId]);
 
         return $stmt->fetchAll();

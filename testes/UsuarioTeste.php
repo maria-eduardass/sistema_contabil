@@ -113,3 +113,46 @@ function comRollbackTesteUsuario(callable $fn): void
         $pdo->rollBack();
     }
 }
+
+// --- CPF e telefone (opcionais, texto livre) ---
+testeIntegracao('Usuario: CPF e telefone são colunas opcionais (os usuários do seed têm null)', function () {
+    $m = new Usuario(bancoDeTeste());
+    foreach ($m->listarPorEmpresa(1) as $u) {
+        afirmarIgual(null, $u['cpf']);
+        afirmarIgual(null, $u['telefone']);
+    }
+});
+
+testeIntegracao('Usuario: criarCliente grava CPF e telefone como a pessoa digitou (texto livre)', function () {
+    comRollbackTesteUsuario(function ($pdo) {
+        $id = (new Usuario($pdo))->criarCliente(3, 'Maria', 'maria@cliente.test', 'x', 'qualquer coisa 123', '(00) abc');
+        $linha = $pdo->query("SELECT cpf, telefone FROM usuarios WHERE id = $id")->fetch();
+        afirmarIgual(['qualquer coisa 123', '(00) abc'], [$linha['cpf'], $linha['telefone']]);
+    });
+});
+
+testeIntegracao('Usuario: criarCliente sem CPF/telefone continua funcionando (ficam null)', function () {
+    comRollbackTesteUsuario(function ($pdo) {
+        $id = (new Usuario($pdo))->criarCliente(3, 'Maria', 'maria@cliente.test', 'Senha@123');
+        $linha = $pdo->query("SELECT cpf, telefone FROM usuarios WHERE id = $id")->fetch();
+        afirmarIgual([null, null], [$linha['cpf'], $linha['telefone']]);
+    });
+});
+
+testeIntegracao('Usuario: listarPorEmpresa devolve CPF e telefone (para o contador) e continua sem o hash', function () {
+    comRollbackTesteUsuario(function ($pdo) {
+        $m = new Usuario($pdo);
+        $m->criarCliente(3, 'Bia', 'bia@cliente.test', 'x', '123', '999');
+        $lista = $m->listarPorEmpresa(3);
+        afirmarIgual(['123', '999'], [$lista[0]['cpf'], $lista[0]['telefone']]);
+        afirmarFalso(array_key_exists('senha_hash', $lista[0]));
+    });
+});
+
+testeIntegracao('Usuario: o banco recusa CPF ou telefone maiores que 30 caracteres (modo estrito)', function () {
+    comRollbackTesteUsuario(function ($pdo) {
+        $m = new Usuario($pdo);
+        afirmarExcecao(PDOException::class, fn () => $m->criarCliente(3, 'A', 'a@cliente.test', 'x', str_repeat('1', 31), null));
+        afirmarExcecao(PDOException::class, fn () => $m->criarCliente(3, 'B', 'b@cliente.test', 'x', null, str_repeat('2', 31)));
+    });
+});

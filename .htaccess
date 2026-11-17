@@ -3,7 +3,7 @@
 
 RewriteEngine On
 # Código, configuração, logs, testes e histórico do Git nunca são servidos pela web.
-RewriteRule ^(app|config|storage|testes|\.git)(/|$) - [F,L]
+RewriteRule ^(app|config|storage|testes|migracoes|\.git)(/|$) - [F,L]
 
 # Segredos, banco e documentação interna.
 <FilesMatch "^(\.env.*|\.gitignore|database\.sql|README\.md)$">
