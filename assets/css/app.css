@@ -286,3 +286,15 @@ body { min-height: 100vh; background: var(--plano); color: var(--tinta); }
 .cartao-termometro .table { font-size: .85rem; }
 .cartao-termometro .table > :not(caption) > * > * { padding: .45rem .5rem; }
 .cartao-termometro .selo-status { font-size: .72rem; padding: .18rem .5rem; }
+
+/* ---------- Avaliação do sistema: estrelas ----------
+   Ordem inversa no HTML (5..1) + row-reverse: "input:checked ~ label" pinta a nota escolhida e as menores,
+   e "label:hover ~ label" faz o mesmo no passar do mouse. Sem JavaScript. */
+.estrelas { display: inline-flex; flex-direction: row-reverse; gap: .25rem; }
+.estrela-radio { position: absolute; opacity: 0; pointer-events: none; }
+.estrela { cursor: pointer; font-size: 2.2rem; line-height: 1; color: var(--grade); transition: color .12s, transform .12s; }
+.estrela:hover { transform: scale(1.12); }
+.estrela-radio:checked ~ .estrela, .estrela:hover, .estrela:hover ~ .estrela { color: #f2a900; }
+.estrela-radio:focus-visible + .estrela { outline: 2px solid var(--primaria); outline-offset: 3px; border-radius: 6px; }
+.estrelas-texto { margin-top: .4rem; min-height: 1.4rem; color: var(--tinta-2); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .estrela { transition: none; } .estrela:hover { transform: none; } }

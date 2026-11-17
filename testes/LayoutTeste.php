@@ -155,3 +155,9 @@ teste('Layout: na tela de filtro só o item do filtro fica ativo (Contas pagas)'
     afirmarIgual(1, substr_count($html, 'nav-link active'));
     afirmarVerdadeiro(preg_match('~nav-link active".*?Contas pagas~s', $html) === 1);
 });
+
+teste('Avaliação: 5 estrelas (radios nota 1 a 5), frase da nota e contador de comentário', function () {
+    $html = layoutTeste(contadorLayoutTeste());
+    afirmarIgual(5, preg_match_all('~type="radio" name="nota" id="nota[1-5]" value="[1-5]"~', $html));
+    afirmarVerdadeiro(str_contains($html, 'data-nota-texto') && str_contains($html, 'data-contador'));
+});

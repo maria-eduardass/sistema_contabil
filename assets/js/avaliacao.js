@@ -15,6 +15,18 @@
         alerta.textContent = texto;
     }
 
+    var textoNota = form.querySelector('[data-nota-texto]');
+    var contador = form.querySelector('[data-contador]');
+    var comentario = form.querySelector('textarea');
+    var frases = { 1: 'Muito ruim', 2: 'Ruim', 3: 'Regular', 4: 'Bom', 5: 'Excelente!' };
+    var padrao = textoNota.textContent;
+
+    // Frase ao lado das estrelas e contador de caracteres (textContent: nunca innerHTML).
+    form.addEventListener('change', function (e) {
+        if (e.target.name === 'nota') { textoNota.textContent = frases[e.target.value] || padrao; }
+    });
+    comentario.addEventListener('input', function () { contador.textContent = String(comentario.value.length); });
+
     function limpar() {
         alerta.className = 'alert d-none';
         alerta.textContent = '';
@@ -49,6 +61,8 @@
                 if (r.dados && r.dados.ok) {
                     mostrarAlerta('success', r.dados.mensagem);
                     form.reset();
+                    textoNota.textContent = padrao;
+                    contador.textContent = '0';
                 } else if (r.dados && r.dados.erros) {
                     mostrarErros(r.dados.erros);
                 } else {
