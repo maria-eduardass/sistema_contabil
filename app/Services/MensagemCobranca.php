@@ -44,7 +44,7 @@ final class MensagemCobranca
         if ($dias < 0) {
             $atraso = -$dias;
             $linhas[] = "Identificamos uma guia em atraso da empresa *$empresa*:";
-            $linhas[] = "• Guia: $descricao (competência " . \formatarCompetencia((string) $guia['competencia']) . ')';
+            $linhas[] = "• Guia: $descricao (competência " . \formatarData((string) $guia['competencia']) . ')';
             $linhas[] = '• Vencimento: ' . \formatarData((string) $guia['data_vencimento']) . " (atrasada há $atraso " . ($atraso === 1 ? 'dia' : 'dias') . ')';
             if ($valor > 0) {
                 $total = $valor + MultaService::calcular($valor, $atraso)['total'];
@@ -64,7 +64,7 @@ final class MensagemCobranca
                 default => "vence em $dias dias",
             };
             $linhas[] = "Lembrete sobre a empresa *$empresa*:";
-            $linhas[] = "• Guia: $descricao (competência " . \formatarCompetencia((string) $guia['competencia']) . ')';
+            $linhas[] = "• Guia: $descricao (competência " . \formatarData((string) $guia['competencia']) . ')';
             $linhas[] = '• Vencimento: ' . \formatarData((string) $guia['data_vencimento']) . " ($prazo)";
             $linhas[] = $valor > 0 ? '• Valor: ' . \formatarCentavos($valor) : '• Valor: sem valor a pagar (declaração)';
             $linhas[] = '';

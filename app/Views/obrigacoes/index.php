@@ -48,7 +48,7 @@ $hoje = date('Y-m-d');
                             <div class="small fst-italic mt-1"><?= icone('chat-left-text') ?> <?= e($o['observacao']) ?></div>
                         <?php endif; ?>
                     </td>
-                    <td><?= e(formatarCompetencia($o['competencia'])) ?></td>
+                    <td><?= e(formatarData($o['competencia'])) ?></td>
                     <td><?= e(formatarData($o['data_vencimento'])) ?></td>
                     <td class="text-end text-nowrap">
                         <?= e(formatarCentavos((int) $o['valor_centavos'])) ?>

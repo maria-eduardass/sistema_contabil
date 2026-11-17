@@ -30,16 +30,18 @@ final class ValidadorObrigacao
             $erros['tipo_obrigacao_id'] = 'Selecione o tipo de obrigação.';
         }
 
-        $competencia = Validator::competencia($texto('competencia'));
+        // A competência é uma DATA completa (dd/mm/aaaa). "AAAA-MM" continua aceito e vira o dia 1º (compatibilidade).
+        $dataCompetencia = Validator::data($texto('competencia'));
+        $competencia = $dataCompetencia !== null ? $dataCompetencia->format('Y-m-d') : Validator::competencia($texto('competencia'));
         if ($competencia === null) {
-            $erros['competencia'] = 'Informe a competência (mês e ano).';
+            $erros['competencia'] = 'Informe a data da competência.';
         }
 
         $vencimento = Validator::data($texto('data_vencimento'));
         if ($vencimento === null) {
             $erros['data_vencimento'] = 'Informe uma data de vencimento válida.';
         } elseif ($competencia !== null && $vencimento->format('Y-m-d') < $competencia) {
-            $erros['data_vencimento'] = 'O vencimento não pode ser anterior ao mês da competência.';
+            $erros['data_vencimento'] = 'O vencimento não pode ser anterior à competência.';
         }
 
         // Valor vazio vale zero: há declarações sem imposto a pagar.

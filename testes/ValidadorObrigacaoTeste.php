@@ -88,3 +88,24 @@ teste('ValidadorObrigacao: campos que o usuário não pode definir (status, empr
         array_keys($r['dados'])
     );
 });
+
+teste('ValidadorObrigacao: a competência guarda o DIA informado (data completa)', function () {
+    $r = validarObrigacaoTeste(entradaObrigacaoTeste(['competencia' => '2026-11-15', 'data_vencimento' => '2026-11-20']));
+    afirmarIgual([], $r['erros']);
+    afirmarIgual('2026-11-15', $r['dados']['competencia']);
+});
+
+teste('ValidadorObrigacao: competência em AAAA-MM continua aceita e vira o dia 1º', function () {
+    afirmarIgual('2026-11-01', validarObrigacaoTeste(entradaObrigacaoTeste(['competencia' => '2026-11']))['dados']['competencia']);
+});
+
+teste('ValidadorObrigacao: vencimento não pode ser anterior ao DIA da competência', function () {
+    $antes = validarObrigacaoTeste(entradaObrigacaoTeste(['competencia' => '2026-11-15', 'data_vencimento' => '2026-11-14']));
+    afirmarVerdadeiro(isset($antes['erros']['data_vencimento']));
+    $mesmo = validarObrigacaoTeste(entradaObrigacaoTeste(['competencia' => '2026-11-15', 'data_vencimento' => '2026-11-15']));
+    afirmarIgual([], $mesmo['erros']);
+});
+
+teste('ValidadorObrigacao: competência com data impossível é rejeitada', function () {
+    afirmarVerdadeiro(isset(validarObrigacaoTeste(entradaObrigacaoTeste(['competencia' => '2026-02-31']))['erros']['competencia']));
+});

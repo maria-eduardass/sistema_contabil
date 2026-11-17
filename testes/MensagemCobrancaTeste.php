@@ -21,7 +21,7 @@ function msgCobrancaTeste(array $guia, string $empresa = 'Padaria Pão Quente ME
 
 teste('Cobrança: guia ATRASADA traz empresa, guia, vencimento, dias e valor atualizado com multa', function () {
     $m = msgCobrancaTeste(guiaCobrancaTeste()); // 20 dias de atraso
-    foreach (['Padaria Pão Quente ME', 'DAS', '10/2026', '28/10/2026', '20 dias', 'R$ 1.850,00', 'R$ 1.984,43'] as $trecho) {
+    foreach (['Padaria Pão Quente ME', 'DAS', '(competência 01/10/2026)', '28/10/2026', '20 dias', 'R$ 1.850,00', 'R$ 1.984,43'] as $trecho) {
         afirmarVerdadeiro(str_contains($m, $trecho), "faltou: $trecho\n$m");
     }
     afirmarVerdadeiro(str_contains($m, 'multa e juros'));

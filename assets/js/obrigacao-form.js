@@ -119,7 +119,7 @@
         temporizador = window.setTimeout(consultar, atraso);
     }
 
-    // Atalhos: preenchem o vencimento (hoje + N dias) e acertam a competência para o mês dele quando ela está vazia ou
+    // Atalhos: preenchem o vencimento (hoje + N dias) e acertam a competência para o mesmo dia dele quando ela está vazia ou
     // vem DEPOIS do vencimento (o servidor recusa vencimento anterior ao mês da competência).
     Array.prototype.forEach.call(form.querySelectorAll('[data-atalho]'), function (botao) {
         botao.addEventListener('click', function () {
@@ -127,8 +127,8 @@
             d.setHours(12, 0, 0, 0); // meio-dia evita virar o dia por causa de horário de verão
             d.setDate(d.getDate() + parseInt(botao.getAttribute('data-atalho'), 10));
             campoVencimento.value = textoData(d);
-            if (campoCompetencia && (campoCompetencia.value === '' || campoCompetencia.value > textoMes(d))) {
-                campoCompetencia.value = textoMes(d);
+            if (campoCompetencia && (campoCompetencia.value === '' || campoCompetencia.value > textoData(d))) {
+                campoCompetencia.value = textoData(d);
             }
             agendar(0);
         });

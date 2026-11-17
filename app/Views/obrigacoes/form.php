@@ -46,7 +46,7 @@ $atalhos = [[-15, '15 dias atrás'], [-1, 'Ontem'], [0, 'Hoje'], [7, 'Em 7 dias'
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label" for="competencia">Competência</label>
-                            <input class="<?= $classe('competencia') ?>" type="month" id="competencia" name="competencia"
+                            <input class="<?= $classe('competencia') ?>" type="date" id="competencia" name="competencia"
                                    value="<?= e($valores['competencia']) ?>" required>
                             <?= $erro('competencia') ?>
                         </div>
