@@ -5,8 +5,12 @@ com um **Termômetro de Risco Fiscal** (score de 0 a 100% e estimativa de multa 
 ao empresário, de forma visual, o quanto o atraso custa — para engajar o cliente e evitar inadimplência.
 
 Stack: **PHP 8.2 puro** (MVC estrito, front-controller `index.php`, sem frameworks e sem Composer) ·
-**MySQL/MariaDB** via PDO com prepared statements · HTML5/CSS3 + **Bootstrap 5** (CDN) ·
+**MySQL/MariaDB** via PDO com prepared statements · HTML5/CSS3 + **Bootstrap 5** e **Bootstrap Icons** (CDN, com SRI) ·
 **JavaScript puro** (velocímetro em SVG) · executor de testes próprio (`testes.php`).
+
+**Destaques:** menu lateral fixo com ícones · resumo financeiro no topo do painel (em atraso, a vencer em 7 dias,
+pago no mês) · velocímetro do Termômetro de Risco · botão **Cobrar no WhatsApp** com a mensagem pronta · selos
+de status (Pago / Pendente / Atrasado) · modal de avaliação do sistema.
 
 ---
 
@@ -35,12 +39,15 @@ As datas do seed são relativas a "hoje", então a demonstração sempre mostra 
 
 ### Roteiro de demonstração (2 minutos)
 
-1. Entre como **contador**: o painel mostra o ranking (Padaria 100%, Tech 26%, Clínica 0%) e a multa estimada total.
+1. Entre como **contador**: no topo, os cartões **Em atraso** (R$ 2.470,50), **A vencer em 7 dias** e **Pago no mês**;
+   abaixo, o ranking (Padaria 100%, Tech 26%, Clínica 0%).
 2. Abra **Termômetro** da Padaria: velocímetro, multa de R$ 145,70 e a tabela de atrasos.
-3. Em **Obrigações → Pagar** (DAS e FGTS): o score cai e o ranking muda.
+3. Em **Obrigações**, clique em **Cobrar no WhatsApp** numa guia atrasada: o WhatsApp abre com a mensagem pronta
+   (empresa, guia, vencimento e valor atualizado com multa). Depois use **Pagar** (DAS e FGTS): o score cai,
+   os cartões e o ranking mudam.
 4. **Empresas → Nova empresa**, depois **Novo usuário** na página da empresa: crie um cliente e entre com ele.
 5. Como **cliente**: veja o termômetro e as próximas obrigações; tente abrir a empresa de outro cliente (**403**).
-6. **Avaliar o sistema** (botão amarelo na barra): nota de 1 a 5 e comentário — o contador vê em **Avaliações**.
+6. **Avaliar o sistema** (botão no rodapé do menu lateral): nota de 1 a 5 e comentário — o contador vê em **Avaliações**.
 
 ---
 
@@ -58,6 +65,20 @@ São regras **simples e explicáveis ao cliente**; não substituem o cálculo of
 
 **Score da empresa** = pior risco + 25% da soma dos demais (limitado a 100).
 **Faixas:** 0–29 baixo (verde) · 30–59 atenção (amarelo) · 60–79 alto (laranja) · 80–100 crítico (vermelho).
+As cores são a paleta de **status** e **nunca aparecem sozinhas**: toda faixa e todo selo levam ícone + rótulo
+(acessível a daltônicos e em impressão preto e branco).
+
+**Resumo financeiro (topo do painel)** — usa as mesmas regras de data do termômetro, então os números nunca se contradizem:
+
+| Cartão | O que soma |
+|---|---|
+| Em atraso | valor das guias não pagas com vencimento **antes de hoje** (e, na nota, o valor com multa e juros estimados) |
+| A vencer em 7 dias | guias não pagas que vencem de **hoje até hoje + 7 dias** |
+| Pago no mês | guias pagas com **data de pagamento** dentro do mês corrente |
+
+**Cobrar no WhatsApp:** gera um link `wa.me` com o texto pronto — empresa, guia, vencimento e valor original/atualizado
+(atrasada) ou um lembrete (a vencer). É o próprio contador que revisa e envia; nenhum dado é enviado pelo servidor.
+Como o cadastro da empresa guarda só e-mail, o destinatário é escolhido no WhatsApp.
 
 **Multa estimada (só atrasadas):** multa de 0,33% ao dia, teto de 20% + juros de 1% ao mês proporcionais aos dias.
 Ex.: R$ 1.000,00 com 10 dias = R$ 33,00 + R$ 3,33 = **R$ 36,33**. Todo cálculo usa **centavos inteiros**
@@ -86,9 +107,9 @@ index.php  testes.php  database.sql  .env.example  .htaccess
 config/rotas.php            tabela única de rotas: rota + método -> controller@ação + nível de acesso
 app/Core/                   Router, Request, View, Auth, Guarda, Csrf, Validator, Flash, Json, Cabecalhos, Database, Env, Logger
 app/Controllers/            magros: validam, chamam Services/Models e devolvem View ou JSON
-app/Services/               regras de negócio puras: TermometroRisco, MultaService, StatusService, RankingRisco, validadores
+app/Services/               regras de negócio puras: TermometroRisco, MultaService, StatusService, RankingRisco, ResumoFinanceiro, MensagemCobranca, validadores
 app/Models/                 acesso ao banco (PDO, prepared statements)
-app/Views/                  HTML (toda saída escapada com e())
+app/Views/                  HTML (toda saída escapada com e()); layout/ (menu lateral), partials/ (cartão de métrica, termômetro, modal)
 assets/                     css/app.css, js/termometro.js (velocímetro), js/avaliacao.js, js/app.js
 testes/                     suítes *Teste.php + checklist_seguranca.sh
 storage/logs/               log de erros (fora da web)
@@ -102,8 +123,8 @@ em banco nem em relógio global ("hoje" é injetado) —, o que permite testá-l
 ## 4. Testes
 
 ```powershell
-C:\xampp\php\php.exe testes.php                  # 178 testes unitários (não precisam de banco)
-C:\xampp\php\php.exe testes.php --integracao     # + 58 de integração = 236 (usam o banco fiscalpulse_teste)
+C:\xampp\php\php.exe testes.php                  # 231 testes unitários (não precisam de banco)
+C:\xampp\php\php.exe testes.php --integracao     # + 61 de integração = 292 (usam o banco fiscalpulse_teste)
 # ou no navegador (somente da própria máquina): http://localhost/sistema_contabil/testes.php
 Get-ChildItem -Recurse -Filter *.php | ForEach-Object { C:\xampp\php\php.exe -l $_.FullName }   # linter
 ```
@@ -114,11 +135,11 @@ e sai com código 1 se algo falhar. Os testes de integração **recriam** o banc
 
 | Tipo | Casos | Suítes |
 |---|---|---|
-| Regra de negócio pura (score, multa, termômetro da empresa, ranking, próximas, média das avaliações) | 67 | `TermometroRisco` 23, `MultaService` 12, `TermometroEmpresa` 13, `RankingRisco` 8, `ProximasObrigacoes` 6, `AvaliacaoResumo` 5 |
+| Regra de negócio pura (score, multa, termômetro da empresa, ranking, próximas, média das avaliações, resumo financeiro, mensagem de cobrança) | 99 | `TermometroRisco` 23, `MultaService` 12, `TermometroEmpresa` 13, `RankingRisco` 8, `ProximasObrigacoes` 6, `AvaliacaoResumo` 5, `ResumoFinanceiro` 13, `MensagemCobranca` 19 |
 | Validação (CNPJ, valor BR, datas, e-mail, senha, formulários) | 44 | `Validator` 14, `ValidadorEmpresa` 7, `ValidadorUsuario` 7, `ValidadorObrigacao` 9, `ValidadorAvaliacao` 7 |
-| Segurança, sem banco (CSRF, login, sessão, acesso por perfil/empresa, cabeçalhos, política de rotas, varredura estática do código) | 50 | `Csrf` 7, `Auth` 7, `LimiteTentativas` 6, `Guarda` 9, `Cabecalhos` 7, `Rotas` 6, `SegurancaEstatica` 8 |
-| **Integração com o banco** (constraints `UNIQUE`/`FK`/`CHECK`, SQL Injection, status e pagamento) | 58 | `Usuario` 12, `Empresa` 11, `Obrigacao` 13, `Avaliacao` 8, `StatusService` 14 |
-| Núcleo (escape, URLs, Request, Env, Logger, mensagens flash, formatação) | 17 | `Nucleo` 13, `Flash` 4 |
+| Segurança, sem banco (CSRF, login, sessão, acesso por perfil/empresa, cabeçalhos, política de rotas, varredura estática do código) | 51 | `Csrf` 7, `Auth` 7, `LimiteTentativas` 6, `Guarda` 9, `Cabecalhos` 8, `Rotas` 6, `SegurancaEstatica` 8 |
+| **Integração com o banco** (constraints `UNIQUE`/`FK`/`CHECK`, SQL Injection, status, pagamento, pagos no período) | 61 | `Usuario` 12, `Empresa` 11, `Obrigacao` 16, `Avaliacao` 8, `StatusService` 14 |
+| Núcleo e interface (escape, URLs, Request, Env, Logger, flash, formatação, selos/ícones, **layout e menu lateral**) | 37 | `Nucleo` 19, `Flash` 4, `Layout` 14 |
 
 A meta de 80% foi tratada como **cobertura por casos**: cada ramo (`if`/`match`) da lógica de negócio tem pelo
 menos um caso (limites 15/16 dias, teto de 100, teto de 20% da multa, 29/30, 59/60, 79/80, entradas inválidas).
@@ -142,16 +163,16 @@ Não há medição automática de cobertura de linhas (exigiria Xdebug/PHPUnit).
 | Integridade | `CHECK`, `FK` e `UNIQUE` no banco como segunda barreira; pagamento atômico (`UPDATE … WHERE status <> 'pago'`) |
 | Erros | Páginas genéricas 403/404/405/500; o detalhe vai para `storage/logs/` |
 | Arquivos | `.htaccess` bloqueia `app/`, `config/`, `storage/`, `testes/`, `.env`, `.sql`, `.md` e a listagem de pastas; `testes.php` só abre da própria máquina |
-| Cabeçalhos | CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `Cache-Control: no-store`, HSTS (só em HTTPS) |
+| Cabeçalhos | CSP (scripts, estilos e fontes só do próprio site e do CDN do Bootstrap), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `Cache-Control: no-store`, HSTS (só em HTTPS) |
 
-### Checklist manual executado em 17/11/2026 — 115 de 115 itens passaram
+### Checklist manual executado em 17/11/2026 — 116 de 116 itens passaram (reexecutado após a nova interface)
 
 Roteiro reproduzível: `bash testes/checklist_seguranca.sh` (com Apache e MySQL ligados; usa Git Bash e `curl`).
 Ele cria dados de teste, apaga tudo no final e confere que o banco voltou ao estado do seed.
 
 | Categoria | Itens | O que foi tentado |
 |---|---|---|
-| 1. SQL Injection | 12 | login com `' OR '1'='1` e `--`; busca com `UNION SELECT` de hashes; `SLEEP(4)` (resposta em < 3 s); `?id=1 OR 1=1`; `DROP TABLE`; tipo injetado no formulário |
+| 1. SQL Injection | 13 | login com `' OR '1'='1` e `--`; busca com `UNION SELECT` de hashes; `SLEEP(4)` (resposta em < 3 s); `?id=1 OR 1=1`; `DROP TABLE`; tipo injetado no formulário; uma conferência prova que o seletor do roteiro enxerga as linhas (evita "passar por não ver nada") |
 | 2. XSS armazenado | 14 | `<script>` na razão social, `"><img onerror>` na observação e `<script>` em avaliação, conferidos em listas, detalhe, formulário de edição, painel e JSON |
 | 3. XSS refletido | 4 | `<script>` em `?busca=`, na rota, no e-mail do login e nos campos de um formulário com erro |
 | 4. CSRF | 12 | sem token, token de outra sessão, adulterado, de antes do login, formulário "de outro site" (`Origin` evil), cabeçalho inválido, GET em rota de escrita |
@@ -162,9 +183,10 @@ Ele cria dados de teste, apaga tudo no final e confere que o banco voltou ao est
 | 9. Erros | 9 | 404/405 sem caminhos ou trace; **falha real de banco** (500) sem vazar banco/usuário/SQLSTATE, com o detalhe no log |
 | 10. Cabeçalhos | 11 | CSP e demais cabeçalhos na página e no JSON |
 
-Além do roteiro, foi feita a **verificação da CSP em navegador real** (Edge): 6 telas, incluindo modal e
-velocímetro, abriram com **0 violações**. Como controle negativo, um `<script>`, um `onclick`, um `style` e uma
-imagem de domínio externo injetados na página foram **bloqueados** pelo navegador.
+Além do roteiro, foi feita a **verificação da CSP em navegador real** (Edge): as telas principais, incluindo modal,
+menu lateral, velocímetro e os ícones (fonte carregada do CDN), abriram com **0 violações** e **0 erros de console**.
+Como controle negativo, um `<script>`, um `onclick`, um `style` e uma imagem de domínio externo injetados na página
+foram **bloqueados** pelo navegador. O layout também foi medido em janelas de 492 e 768 px: nenhuma tela estoura na horizontal.
 
 ### Limitações conhecidas (MVP)
 
@@ -174,6 +196,8 @@ imagem de domínio externo injetados na página foram **bloqueados** pelo navega
 - As proteções do `.htaccess` dependem de `AllowOverride All` (padrão do XAMPP); o checklist (categoria 8) confirma que estão ativas.
 - O checklist é um teste de caixa-preta por `curl`, **não** um teste de intrusão profissional.
 - A multa é uma **estimativa** simplificada (ver seção 2), sem a multa mínima da Receita nem a SELIC.
+- O **WhatsApp** abre sem número de destino (o cadastro só tem e-mail); guardar o telefone da empresa exigiria uma coluna nova no banco.
+- Interface somente em **tema claro**; Bootstrap e Bootstrap Icons dependem do CDN (com SRI) — sem internet, o visual cai para o básico.
 
 ---
 
