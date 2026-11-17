@@ -13,6 +13,7 @@ use App\Core\View;
 use App\Models\Empresa;
 use App\Models\Obrigacao;
 use App\Models\TipoObrigacao;
+use App\Services\MensagemCobranca;
 use App\Services\RegraDeNegocio;
 use App\Services\StatusService;
 use App\Services\ValidadorObrigacao;
@@ -77,12 +78,22 @@ final class ObrigacaoController
 
     private function exibirLista(int $empresaId): void
     {
-        $this->servico()->sincronizar(new DateTimeImmutable()); // garante "atrasada" em dia, sem cron
+        $hoje = new DateTimeImmutable();
+        $this->servico()->sincronizar($hoje); // garante "atrasada" em dia, sem cron
+        $empresa = $this->empresaOu404($empresaId);
+        $obrigacoes = (new Obrigacao(Database::conexao()))->listarPorEmpresa($empresaId);
+        $ehContador = Auth::usuario()['perfil'] === 'contador';
+
+        if ($ehContador) {
+            // Botão "Cobrar no WhatsApp" e valor atualizado com multa: ferramenta do escritório, não do cliente.
+            $obrigacoes = MensagemCobranca::enriquecerLista($obrigacoes, (string) $empresa['razao_social'], $hoje);
+        }
+
         View::exibir('obrigacoes/index', [
             'titulo' => 'Obrigações',
-            'empresa' => $this->empresaOu404($empresaId),
-            'obrigacoes' => (new Obrigacao(Database::conexao()))->listarPorEmpresa($empresaId),
-            'ehContador' => Auth::usuario()['perfil'] === 'contador',
+            'empresa' => $empresa,
+            'obrigacoes' => $obrigacoes,
+            'ehContador' => $ehContador,
         ]);
     }
 
