@@ -43,10 +43,12 @@ busca() { curl -s -G -o "$TMP/pag.html" -w '%{http_code}' -b "$CJ" -c "$CJ" "$ID
 igual "SQLi-3a busca com UNION SELECT responde normalmente (200)" 200 "$(busca "' UNION SELECT id,senha_hash,email,1,1,1 FROM usuarios -- ")"
 zero "SQLi-3b busca com UNION SELECT não vaza hashes de senha" "$(grep -c '\$2y\$' $TMP/pag.html)"
 zero "SQLi-4 busca com UNION SELECT não mostra erro de SQL" "$(grep -ciE 'SQL syntax|SQLSTATE|PDOException|mysql' $TMP/pag.html)"
+busca "" >/dev/null
+igual "SQLi-4a validação do seletor: a listagem sem filtro mostra as 3 empresas (se isto falhar, os itens 4b/4c não provam nada)" 3 "$(grep -c '<span class="selo-status' $TMP/pag.html)"
 busca "' OR 'a'='a' -- " >/dev/null
-igual "SQLi-4b tautologia ' OR 'a'='a não devolve todas as empresas (0 linhas)" 0 "$(grep -c 'badge text-bg-\(success\|secondary\)' $TMP/pag.html)"
+igual "SQLi-4b tautologia ' OR 'a'='a não devolve todas as empresas (0 linhas)" 0 "$(grep -c '<span class="selo-status' $TMP/pag.html)"
 busca "%' OR 1=1 -- " >/dev/null
-igual "SQLi-4c ' OR 1=1 só casa o CNPJ legítimo pelos dígitos '11' (2 de 3 empresas, nunca todas)" 2 "$(grep -c 'badge text-bg-\(success\|secondary\)' $TMP/pag.html)"
+igual "SQLi-4c ' OR 1=1 só casa o CNPJ legítimo pelos dígitos '11' (2 de 3 empresas, nunca todas)" 2 "$(grep -c '<span class="selo-status' $TMP/pag.html)"
 ini=$(date +%s%N); busca "x' AND SLEEP(4) -- " >/dev/null; ms=$(( ($(date +%s%N) - ini) / 1000000 ))
 if [ $ms -lt 3000 ]; then ok "SQLi-4d injeção por tempo (SLEEP 4s) não atrasa a resposta (${ms} ms)"; else falha "SQLi-4d SLEEP" "${ms} ms"; fi
 igual "SQLi-5 ?id=1 OR 1=1 é rejeitado (404)" 404 "$(get "$CJ" 'empresas/ver&id=1%20OR%201=1')"
