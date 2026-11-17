@@ -6,7 +6,7 @@ use App\Services\ValidadorEmpresa;
 ?>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h3 m-0">Empresas</h1>
-    <a class="btn btn-primary" href="<?= e(url('empresas/criar')) ?>">Nova empresa</a>
+    <a class="btn btn-primary" href="<?= e(url('empresas/criar')) ?>"><?= icone('plus-lg') ?> Nova empresa</a>
 </div>
 
 <form class="row g-2 mb-3" method="get" action="index.php">
@@ -34,20 +34,26 @@ use App\Services\ValidadorEmpresa;
                     <td class="text-nowrap"><?= e(formatarCnpj($emp['cnpj'])) ?></td>
                     <td><?= e(ValidadorEmpresa::REGIMES[$emp['regime_tributario']] ?? $emp['regime_tributario']) ?></td>
                     <td><?= e($emp['email_contato']) ?></td>
-                    <td><?= (int) $emp['ativa'] === 1
-                        ? '<span class="badge text-bg-success">Ativa</span>'
-                        : '<span class="badge text-bg-secondary">Inativa</span>' ?></td>
-                    <td class="text-end text-nowrap">
-                        <a class="btn btn-sm btn-outline-primary" href="<?= e(url('empresas/ver', ['id' => $emp['id']])) ?>">Ver</a>
-                        <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('empresas/editar', ['id' => $emp['id']])) ?>">Editar</a>
+                    <td>
                         <?php if ((int) $emp['ativa'] === 1) : ?>
-                            <form class="d-inline" method="post" action="<?= e(url('empresas/inativar')) ?>"
-                                  data-confirmar="Inativar esta empresa? O histórico será mantido.">
-                                <?= Csrf::campo() ?>
-                                <input type="hidden" name="id" value="<?= (int) $emp['id'] ?>">
-                                <button class="btn btn-sm btn-outline-danger" type="submit">Inativar</button>
-                            </form>
+                            <span class="selo-status selo-status-pago"><?= icone('check-circle-fill') ?>Ativa</span>
+                        <?php else : ?>
+                            <span class="selo-status"><?= icone('dash-circle') ?>Inativa</span>
                         <?php endif; ?>
+                    </td>
+                    <td>
+                        <div class="acoes-linha">
+                            <a class="btn btn-sm btn-outline-primary" href="<?= e(url('empresas/ver', ['id' => $emp['id']])) ?>"><?= icone('eye') ?> Ver</a>
+                            <a class="btn btn-sm btn-outline-secondary" href="<?= e(url('empresas/editar', ['id' => $emp['id']])) ?>"><?= icone('pencil-square') ?> Editar</a>
+                            <?php if ((int) $emp['ativa'] === 1) : ?>
+                                <form class="d-inline" method="post" action="<?= e(url('empresas/inativar')) ?>"
+                                      data-confirmar="Inativar esta empresa? O histórico será mantido.">
+                                    <?= Csrf::campo() ?>
+                                    <input type="hidden" name="id" value="<?= (int) $emp['id'] ?>">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit"><?= icone('slash-circle') ?> Inativar</button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>

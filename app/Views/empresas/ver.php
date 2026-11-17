@@ -10,7 +10,13 @@ use App\Services\ValidadorEmpresa;
             <dt class="col-sm-3">CNPJ</dt><dd class="col-sm-9"><?= e(formatarCnpj($empresa['cnpj'])) ?></dd>
             <dt class="col-sm-3">Regime</dt><dd class="col-sm-9"><?= e(ValidadorEmpresa::REGIMES[$empresa['regime_tributario']] ?? '') ?></dd>
             <dt class="col-sm-3">E-mail</dt><dd class="col-sm-9"><?= e($empresa['email_contato']) ?></dd>
-            <dt class="col-sm-3">Situação</dt><dd class="col-sm-9"><?= (int) $empresa['ativa'] === 1 ? 'Ativa' : 'Inativa' ?></dd>
+            <dt class="col-sm-3">Situação</dt><dd class="col-sm-9">
+                <?php if ((int) $empresa['ativa'] === 1) : ?>
+                    <span class="selo-status selo-status-pago"><?= icone('check-circle-fill') ?>Ativa</span>
+                <?php else : ?>
+                    <span class="selo-status"><?= icone('dash-circle') ?>Inativa</span>
+                <?php endif; ?>
+            </dd>
         </dl>
         <a class="btn btn-outline-primary btn-sm mt-3" href="<?= e(url('obrigacoes/index', ['empresa_id' => (int) $empresa['id']])) ?>">Ver obrigações</a>
     </div>
