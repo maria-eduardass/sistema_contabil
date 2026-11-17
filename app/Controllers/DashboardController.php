@@ -12,6 +12,7 @@ use App\Models\Empresa;
 use App\Models\Obrigacao;
 use App\Services\ProximasObrigacoes;
 use App\Services\RankingRisco;
+use App\Services\ResumoFinanceiro;
 use App\Services\StatusService;
 use DateTimeImmutable;
 
@@ -25,7 +26,7 @@ final class DashboardController
         redirecionar($perfil === 'contador' ? 'dashboard/contador' : 'dashboard/cliente');
     }
 
-    /** Ranking de risco de todas as empresas ativas, da mais crítica para a mais tranquila. */
+    /** Resumo financeiro + ranking de risco de todas as empresas ativas, da mais crítica para a mais tranquila. */
     public function contador(Request $req): void
     {
         $pdo = Database::conexao();
@@ -33,17 +34,26 @@ final class DashboardController
         $obrigacoes = new Obrigacao($pdo);
         (new StatusService($obrigacoes))->sincronizar($hoje); // atrasos em dia antes de calcular
 
-        $ranking = RankingRisco::montar((new Empresa($pdo))->listarAtivas(), $obrigacoes->listarEmAbertoDeEmpresasAtivas(), $hoje);
+        $abertas = $obrigacoes->listarEmAbertoDeEmpresasAtivas();
+        $ranking = RankingRisco::montar((new Empresa($pdo))->listarAtivas(), $abertas, $hoje);
+
+        // Todas as guias em aberto (de todas as empresas) + as pagas neste mês.
+        $linhas = array_merge(
+            $abertas === [] ? [] : array_merge(...array_values($abertas)),
+            $obrigacoes->listarPagasNoPeriodo($hoje->format('Y-m-01'), $hoje->format('Y-m-d'))
+        );
 
         View::exibir('dashboard/contador', [
             'titulo' => 'Painel do contador',
             'usuario' => Auth::usuario(),
             'ranking' => $ranking['empresas'],
             'resumo' => $ranking['resumo'],
+            'financeiro' => ResumoFinanceiro::calcular($linhas, $hoje),
+            'mes' => $hoje->format('m/Y'),
         ]);
     }
 
-    /** Termômetro (via JS) e as próximas obrigações da empresa do próprio cliente. */
+    /** Resumo financeiro, termômetro (via JS) e as próximas obrigações da empresa do próprio cliente. */
     public function cliente(Request $req): void
     {
         $usuario = Auth::usuario();
@@ -56,12 +66,15 @@ final class DashboardController
         $hoje = new DateTimeImmutable();
         $obrigacoes = new Obrigacao($pdo);
         (new StatusService($obrigacoes))->sincronizar($hoje);
+        $linhas = $obrigacoes->listarPorEmpresa($empresaId);
 
         View::exibir('dashboard/cliente', [
             'titulo' => 'Minha empresa',
             'usuario' => $usuario,
             'empresa' => (new Empresa($pdo))->buscar($empresaId),
-            'proximas' => ProximasObrigacoes::de($obrigacoes->listarPorEmpresa($empresaId), $hoje, 5),
+            'proximas' => ProximasObrigacoes::de($linhas, $hoje, 5),
+            'financeiro' => ResumoFinanceiro::calcular($linhas, $hoje),
+            'mes' => $hoje->format('m/Y'),
             'scripts' => ['assets/js/termometro.js'],
         ]);
     }
