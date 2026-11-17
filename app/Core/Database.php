@@ -38,6 +38,11 @@ final class Database
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
+                // Modo estrito POR SESSÃO. O MariaDB do XAMPP vem sem ele e, assim, corta em silêncio um texto
+                // maior que a coluna (e troca um ENUM inválido por vazio): o dado gravado seria diferente do enviado,
+                // sem nenhum erro. Em modo estrito o banco recusa, e a transação é desfeita. Os outros modos que o
+                // servidor já usa são preservados (o TRIM evita uma vírgula sobrando se o modo atual for vazio).
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET SESSION sql_mode = TRIM(BOTH ',' FROM CONCAT(@@sql_mode, ',STRICT_TRANS_TABLES'))",
             ]);
         } catch (PDOException $e) {
             // Mensagem genérica: a original pode expor host/usuário.
