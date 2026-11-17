@@ -4,6 +4,11 @@ declare(strict_types=1);
 use App\Core\View;
 use App\Services\ValidadorEmpresa;
 
+/*
+ * Testes das TELAS do cadastro (login com o botão Criar conta, o formulário e a lista do contador). Renderizam a view
+ * direto, sem servidor e sem banco. O quarto parâmetro é o layout: '' devolve só o miolo (mais fácil de inspecionar);
+ * 'layout/principal' devolve a página inteira, necessário para testar a casca pública e a CSP.
+ */
 function formCadastroTeste(array $valores = [], array $erros = [], array $extra = [], string $layout = ''): string
 {
     $_SESSION = [];
@@ -80,6 +85,8 @@ teste('Cadastro (tela): sem estilo, handler ou script inline (compatível com a 
 });
 
 // --- CPF e telefone na tela; senha livre ---
+// Cada teste abaixo trava uma decisão da tela: os campos são opcionais (sem required), voltam escapados após um erro
+// (defesa contra XSS) e os avisos dizem que senha e CNPJ podem ser qualquer um (projeto escolar).
 teste('Cadastro (tela): tem os campos opcionais CPF e telefone, e avisa que são opcionais', function () {
     $html = formCadastroTeste();
     afirmarVerdadeiro(str_contains($html, 'name="cpf"') && str_contains($html, 'name="telefone"'));

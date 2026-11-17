@@ -6,6 +6,12 @@ require_once __DIR__ . '/_ajuda_banco.php';
 use App\Models\Usuario;
 use App\Services\CadastroService;
 
+/*
+ * Testes de INTEGRAÇÃO do cadastro (usam o banco de teste). Ponto importante: CadastroService abre a própria transação,
+ * e o MySQL não aceita transação dentro de transação. Por isso estes testes NÃO usam o rollback externo dos outros
+ * arquivos; cada um limpa o que criou (comLimpezaCadastroTeste), antes e depois, para não afetar os demais testes
+ * (vários contam as 3 empresas e os 3 usuários do seed).
+ */
 const CNPJ_NOVO_TESTE = '45723174000110';
 
 function dadosCadastroTeste(array $sobrescrever = []): array
@@ -112,6 +118,7 @@ testeIntegracao('Cadastro: é atômico — se a criação do usuário falha, a e
     comLimpezaCadastroTeste(function ($pdo) {
         $antes = contagensTeste($pdo);
         // Nome maior que a coluna (120): o INSERT do usuário falha DEPOIS de a empresa já ter sido inserida.
+        // Só dá erro porque a conexão usa o modo estrito (ver DatabaseTeste); sem ele o nome seria cortado em silêncio.
         afirmarExcecao(PDOException::class, fn () => CadastroService::cadastrar($pdo, dadosCadastroTeste(['nome' => str_repeat('a', 400)])));
         afirmarIgual($antes, contagensTeste($pdo));
         afirmarFalso($pdo->inTransaction(), 'a transação não pode ficar aberta');
@@ -130,6 +137,8 @@ testeIntegracao('Cadastro: duas pessoas diferentes com CNPJs diferentes convivem
 });
 
 // --- CPF, telefone, senha e CNPJ livres (projeto escolar) ---
+// O serviço guarda o que recebe (o ValidadorCadastro já decidiu o que é aceitável). Aqui se confere que o dado chega ao banco
+// exatamente como veio, inclusive texto estranho: a defesa contra XSS é ESCAPAR NA SAÍDA, e contra SQL Injection é o bind.
 testeIntegracao('Cadastro: grava CPF e telefone da conta quando informados', function () {
     comLimpezaCadastroTeste(function ($pdo) {
         $r = CadastroService::cadastrar($pdo, dadosCadastroTeste(['cpf' => '000.000.000-00', 'telefone' => '(11) 90000-0000']));

@@ -181,9 +181,20 @@ maior0 "JSON com Content-Type application/json" "$(echo "$HJ" | grep -ci '^conte
 maior0 "JSON com Cache-Control: no-store" "$(echo "$HJ" | grep -ci '^cache-control:.*no-store')"
 maior0 "JSON também com nosniff" "$(echo "$HJ" | grep -ci '^x-content-type-options: nosniff')"
 
+# ---------------------------------------------------------------------------------------------
+# Seção 11: a tela pública "Criar conta". É a única porta de entrada SEM login além do próprio login,
+# então merece verificação própria: o que um visitante consegue (e não consegue) fazer por aqui.
+# Regras testadas: CSRF obrigatório, perfil sempre cliente, empresa sempre nova, CNPJ de cliente que já existe
+# recusado, nada vazando para o banco em caso de erro, XSS e senha que não volta na tela, limite de envios por sessão,
+# e o MODO ESCOLAR (senha, CNPJ e CPF livres) sem abrir mão dos limites técnicos.
+# ---------------------------------------------------------------------------------------------
 echo "=== 11. AUTOCADASTRO (rota pública \"Criar conta\")"
+# cadastrar JAR [campos...]: faz um POST de cadastro com um token CSRF válido DAQUELA sessão (cookie jar). Cada chamada
+# usa um jar próprio de propósito: o limite de 5 envios é por sessão, e assim uma verificação não bloqueia a seguinte.
 cadastrar() { jar=$1; shift; t=$(tok "$jar" cadastro/novo); curl -s -o "$TMP/pag.html" -w '%{http_code}' -b "$jar" -c "$jar" -X POST "$IDX?rota=cadastro/salvar" --data-urlencode "csrf_token=$t" "$@"; }
+# Dados de um cadastro válido, reaproveitados (e alterados campo a campo) pelas verificações abaixo.
 CAD_OK=(--data-urlencode 'nome=Conta Teste' --data-urlencode 'email=cad.teste@padaria.test' --data-urlencode 'senha=Senha@123' --data-urlencode 'senha_confirmacao=Senha@123' --data-urlencode 'razao_social=Empresa de Teste Ltda' --data-urlencode 'cnpj=12.345.678/0001-95' --data-urlencode regime_tributario=mei)
+# Fotografia do banco ANTES das tentativas recusadas, para provar depois que elas não criaram nada.
 CNT_ANTES="$($SQL 'select count(*) from empresas')/$($SQL 'select count(*) from usuarios')"
 igual "Cadastro-1 a tela de criar conta abre para visitante (200)" 200 "$(code "$IDX?rota=cadastro/novo")"
 maior0 "Cadastro-2 a tela de login tem o botão \"Criar conta\"" "$(curl -s "$IDX?rota=auth/login" | grep -c 'rota=cadastro/novo')"
@@ -215,6 +226,7 @@ maior0 "Cadastro-19 o contador enxerga a empresa nova no ranking" "$(grep -c 'Em
 r=""; for i in 1 2 3 4 5 6; do r="$r $(cadastrar $TMP/cd7.txt --data-urlencode nome=A)"; done
 igual "Cadastro-20 o 6º envio seguido na mesma sessão é bloqueado (429)" "422 422 422 422 422 429" "$(echo $r)"
 
+# Modo escolar: o mesmo cadastro, mas com senha "1", CNPJ inventado e CPF/telefone com texto qualquer.
 LIVRE=(--data-urlencode 'nome=Aluno Livre' --data-urlencode 'email=cad2.teste@padaria.test' --data-urlencode 'razao_social=Escola de Teste Ltda' --data-urlencode regime_tributario=mei)
 igual "Cadastro-21 projeto escolar: senha \"1\", CNPJ de dígito inventado e CPF/telefone qualquer texto são aceitos (302)" 302 "$(cadastrar $TMP/cd8.txt "${LIVRE[@]}" --data-urlencode senha=1 --data-urlencode senha_confirmacao=1 --data-urlencode cnpj=22222222222222 --data-urlencode 'cpf=<script>alert(1)</script>' --data-urlencode 'telefone=abc ???')"
 igual "Cadastro-22 CPF e telefone foram gravados exatamente como digitados (a defesa é escapar na saída)" "<script>alert(1)</script>|abc ???" "$($SQL "select concat(cpf,'|',telefone) from usuarios where email='cad2.teste@padaria.test'")"

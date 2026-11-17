@@ -115,6 +115,8 @@ function comRollbackTesteUsuario(callable $fn): void
 }
 
 // --- CPF e telefone (opcionais, texto livre) ---
+// Colunas novas de usuarios (migração 001). Os usuários do seed ficam com null; o 31º caractere é recusado pelo banco
+// em modo estrito, que é a segunda barreira depois do ValidadorCadastro.
 testeIntegracao('Usuario: CPF e telefone são colunas opcionais (os usuários do seed têm null)', function () {
     $m = new Usuario(bancoDeTeste());
     foreach ($m->listarPorEmpresa(1) as $u) {
