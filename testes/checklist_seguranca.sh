@@ -181,8 +181,42 @@ maior0 "JSON com Content-Type application/json" "$(echo "$HJ" | grep -ci '^conte
 maior0 "JSON com Cache-Control: no-store" "$(echo "$HJ" | grep -ci '^cache-control:.*no-store')"
 maior0 "JSON também com nosniff" "$(echo "$HJ" | grep -ci '^x-content-type-options: nosniff')"
 
+echo "=== 11. AUTOCADASTRO (rota pública \"Criar conta\")"
+cadastrar() { jar=$1; shift; t=$(tok "$jar" cadastro/novo); curl -s -o "$TMP/pag.html" -w '%{http_code}' -b "$jar" -c "$jar" -X POST "$IDX?rota=cadastro/salvar" --data-urlencode "csrf_token=$t" "$@"; }
+CAD_OK=(--data-urlencode 'nome=Conta Teste' --data-urlencode 'email=cad.teste@padaria.test' --data-urlencode 'senha=Senha@123' --data-urlencode 'senha_confirmacao=Senha@123' --data-urlencode 'razao_social=Empresa de Teste Ltda' --data-urlencode 'cnpj=12.345.678/0001-95' --data-urlencode regime_tributario=mei)
+CNT_ANTES="$($SQL 'select count(*) from empresas')/$($SQL 'select count(*) from usuarios')"
+igual "Cadastro-1 a tela de criar conta abre para visitante (200)" 200 "$(code "$IDX?rota=cadastro/novo")"
+maior0 "Cadastro-2 a tela de login tem o botão \"Criar conta\"" "$(curl -s "$IDX?rota=auth/login" | grep -c 'rota=cadastro/novo')"
+igual "Cadastro-3 GET no endpoint de gravar é recusado (405)" 405 "$(code "$IDX?rota=cadastro/salvar")"
+igual "Cadastro-4 POST sem token CSRF é bloqueado (403)" 403 "$(code -X POST "$IDX?rota=cadastro/salvar" -d nome=x)"
+igual "Cadastro-5 formulário vazio: 422, uma mensagem por campo (>= 6)" "422 sim" "$(cadastrar $TMP/cd1.txt --data-urlencode nome=) $([ "$(grep -c 'invalid-feedback">' $TMP/pag.html)" -ge 6 ] && echo sim || echo nao)"
+cadastrar $TMP/cd2.txt "${CAD_OK[@]}" --data-urlencode 'cnpj=11.222.333/0001-81' --data-urlencode 'email=intruso@x.test' >/dev/null
+maior0 "Cadastro-6 CNPJ de um cliente que já existe é recusado, com orientação de falar com o contador" "$(grep -c 'peça ao seu contador' $TMP/pag.html)"
+igual "Cadastro-7 o CNPJ recusado não criou empresa nem usuário (nada vazou para o banco)" "$CNT_ANTES" "$($SQL 'select count(*) from empresas')/$($SQL 'select count(*) from usuarios')"
+cadastrar $TMP/cd3.txt "${CAD_OK[@]}" --data-urlencode 'email=CONTADOR@fiscalpulse.test' >/dev/null
+maior0 "Cadastro-8 e-mail já usado é recusado, sem diferenciar maiúsculas" "$(grep -c 'Já existe uma conta com este e-mail' $TMP/pag.html)"
+cadastrar $TMP/cd4.txt "${CAD_OK[@]}" --data-urlencode 'razao_social="><script>alert(1)</script>' --data-urlencode cnpj=123 >/dev/null
+zero "Cadastro-9 XSS: valores devolvidos após um erro não trazem <script> executável" "$(grep -c '<script>alert(1)' $TMP/pag.html)"
+cadastrar $TMP/cd4b.txt "${CAD_OK[@]}" --data-urlencode cnpj=123 --data-urlencode 'senha=Segredo@999' --data-urlencode 'senha_confirmacao=Segredo@999' >/dev/null
+zero "Cadastro-10 a senha digitada nunca volta no HTML" "$(grep -c 'Segredo@999' $TMP/pag.html)"
+igual "Cadastro-11 cadastro válido com perfil, empresa e situação FORJADOS no POST redireciona ao painel (302)" 302 "$(cadastrar $TMP/cd5.txt "${CAD_OK[@]}" --data-urlencode perfil=contador --data-urlencode empresa_id=1 --data-urlencode ativo=0 --data-urlencode ativa=0)"
+igual "Cadastro-12 a conta criada é CLIENTE ativo, em empresa NOVA (não a 1) e ativa" "cliente 1 sim 1" "$($SQL "select concat(u.perfil,' ',u.ativo,' ',if(u.empresa_id<>1 and u.empresa_id>3,'sim','nao'),' ',e.ativa) from usuarios u join empresas e on e.id=u.empresa_id where u.email='cad.teste@padaria.test'")"
+igual "Cadastro-13 a senha foi gravada como hash bcrypt" '$2y$' "$($SQL "select left(senha_hash,4) from usuarios where email='cad.teste@padaria.test'")"
+NOVA=$($SQL "select empresa_id from usuarios where email='cad.teste@padaria.test'")
+igual "Cadastro-14 a conta nova já entra logada: o próprio painel abre (200)" 200 "$(get $TMP/cd5.txt dashboard/cliente)"
+igual "Cadastro-15 e abre a PRÓPRIA empresa (200)" 200 "$(get $TMP/cd5.txt "empresas/ver&id=$NOVA")"
+for rota in "empresas/ver&id=1" "termometro/json&empresa_id=1" "obrigacoes/index&empresa_id=2" empresas/index "usuarios/criar&empresa_id=$NOVA" avaliacoes/index dashboard/contador; do
+  igual "Cadastro-16 a conta nova não alcança $rota (403)" 403 "$(get $TMP/cd5.txt "$rota")"
+done
+igual "Cadastro-17 quem já está logado e abre /cadastro/novo vai para o painel (302)" 302 "$(get $TMP/cd5.txt cadastro/novo)"
+igual "Cadastro-18 a conta nova consegue sair e entrar de novo com a senha escolhida (302)" 302 "$(login $TMP/cd6.txt cad.teste@padaria.test 'Senha@123')"
+get "$CJ" dashboard/contador >/dev/null
+maior0 "Cadastro-19 o contador enxerga a empresa nova no ranking" "$(grep -c 'Empresa de Teste Ltda' $TMP/pag.html)"
+r=""; for i in 1 2 3 4 5 6; do r="$r $(cadastrar $TMP/cd7.txt --data-urlencode nome=A)"; done
+igual "Cadastro-20 o 6º envio seguido na mesma sessão é bloqueado (429)" "422 422 422 422 422 429" "$(echo $r)"
+
 echo "=== LIMPEZA"
-$SQL "delete from obrigacoes where empresa_id in (select id from empresas where cnpj='45723174000110'); delete from empresas where cnpj='45723174000110'; delete from usuarios where email='perfil@x.test'; delete from avaliacoes where id > 1;"
+$SQL "delete from obrigacoes where empresa_id in (select id from empresas where cnpj='45723174000110'); delete from empresas where cnpj='45723174000110'; delete from usuarios where email in ('perfil@x.test', 'cad.teste@padaria.test'); delete from empresas where cnpj='12345678000195'; delete from avaliacoes where id > 1;"
 echo "banco restaurado (empresas/usuários/obrigações/avaliações): $($SQL 'select count(*) from empresas') $($SQL 'select count(*) from usuarios') $($SQL 'select count(*) from obrigacoes') $($SQL 'select count(*) from avaliacoes')  | empresa 1 ativa=$($SQL 'select ativa from empresas where id=1')  obrigação 1 = $($SQL 'select status from obrigacoes where id=1')"
 rm -rf "$TMP"
 echo
