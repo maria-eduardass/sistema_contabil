@@ -13,6 +13,19 @@ use Throwable;
  */
 final class View
 {
+    /**
+     * Dados presentes em TODA view e no layout (ex.: a rota atual, para o menu marcar o item ativo).
+     * Por que existe: a view não lê a requisição por conta própria (isso é só da classe Request).
+     *
+     * @var array<string,mixed>
+     */
+    private static array $compartilhados = [];
+
+    public static function compartilhar(string $chave, mixed $valor): void
+    {
+        self::$compartilhados[$chave] = $valor;
+    }
+
     /** @param array<string,mixed> $dados */
     public static function exibir(string $view, array $dados = [], string $layout = 'layout/principal'): void
     {
@@ -28,6 +41,7 @@ final class View
     /** @param array<string,mixed> $dados */
     public static function renderizar(string $view, array $dados = [], string $layout = 'layout/principal'): string
     {
+        $dados += self::$compartilhados; // os dados da própria view têm prioridade
         $conteudo = self::capturar($view, $dados);
         return $layout === '' ? $conteudo : self::capturar($layout, $dados + ['conteudo' => $conteudo]);
     }

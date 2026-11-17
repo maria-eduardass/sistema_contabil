@@ -1,41 +1,242 @@
-/* Estilos próprios do FiscalPulse (o resto vem do Bootstrap). */
-body { min-height: 100vh; }
+/* FiscalPulse — estilos próprios (o resto vem do Bootstrap 5 e do Bootstrap Icons).
+ *
+ * Regras que este arquivo segue:
+ *  - Nenhum estilo inline nas views: a CSP (Cabecalhos.php) não permite, e um teste estático garante.
+ *  - Cores de STATUS são fixas e reservadas (bom / alerta / sério / crítico) e sempre vêm com ícone + rótulo:
+ *    a cor sozinha nunca carrega o significado (daltonismo, impressão em preto e branco).
+ *  - O texto usa tons de tinta; a cor do dado aparece em marcas ao lado (ponto, ícone, arco), nunca no texto.
+ */
 
-/* --- Termômetro de Risco Fiscal ---
-   Cores por faixa: baixo (verde), atenção (amarelo), alto (laranja), crítico (vermelho).
-   Estão aqui (e não no JS) para o tema ficar num só arquivo e funcionar com CSP restritiva. */
-.termometro-svg { width: 100%; max-width: 320px; height: auto; }
-.seg { fill: none; stroke-width: 16; }
-.seg-baixo { stroke: #198754; }
-.seg-atencao { stroke: #ffc107; }
-.seg-alto { stroke: #fd7e14; }
-.seg-critico { stroke: #dc3545; }
-.ponteiro { stroke: #212529; stroke-width: 3; stroke-linecap: round; }
-.ponteiro-base { fill: #212529; }
-.termometro-valor { font-size: 2.75rem; font-weight: 700; line-height: 1.1; }
-.termometro-faixa { font-weight: 600; }
-/* Tons mais escuros no texto para manter contraste legível sobre fundo branco. */
-[data-faixa="baixo"] .termometro-valor, [data-faixa="baixo"] .termometro-faixa { color: #146c43; }
-[data-faixa="atencao"] .termometro-valor, [data-faixa="atencao"] .termometro-faixa { color: #8a6500; }
-[data-faixa="alto"] .termometro-valor, [data-faixa="alto"] .termometro-faixa { color: #b85a00; }
-[data-faixa="critico"] .termometro-valor, [data-faixa="critico"] .termometro-faixa { color: #b02a37; }
+:root {
+    /* Chrome e tinta */
+    --plano: #f6f6f3;
+    --superficie: #fcfcfb;
+    --tinta: #0b0b0b;
+    --tinta-2: #52514e;
+    --suave: #898781;
+    --borda: rgba(11, 11, 11, .10);
+    --grade: #e1e0d9;
+    --sombra: 0 1px 2px rgba(16, 24, 40, .06), 0 6px 18px rgba(16, 24, 40, .06);
+    --sombra-forte: 0 2px 4px rgba(16, 24, 40, .08), 0 12px 28px rgba(16, 24, 40, .10);
+    --raio: 14px;
 
-/* --- Ranking de risco (painel do contador) ---
-   <progress> em vez de <div style="width:..%">: não exige estilo inline, então funciona com CSP restritiva. */
+    /* Marca (azul sequencial, passo 500: contraste 5,4:1 com texto branco) */
+    --primaria: #256abf;
+    --primaria-hover: #1c5cab;
+    --primaria-clara: #e8f0fb;
+
+    /* Status (paleta fixa) e seus fundos suaves */
+    --bom: #0ca30c;       --bom-suave: #e7f6e7;
+    --alerta: #fab219;    --alerta-suave: #fff3d1;
+    --serio: #ec835a;     --serio-suave: #fdebe2;
+    --critico: #d03b3b;   --critico-suave: #fbe5e5;
+    --neutro-suave: #eeeeea;
+
+    /* Menu lateral */
+    --largura-menu: 264px;
+    --menu-fundo: #12151c;
+    --menu-texto: #b9bdc7;
+    --menu-ativo: rgba(255, 255, 255, .09);
+
+    /* Ajustes do Bootstrap */
+    --bs-body-bg: var(--plano);
+    --bs-body-color: var(--tinta);
+    --bs-secondary-color: var(--tinta-2);
+    --bs-border-color: var(--borda);
+    --bs-link-color: var(--primaria-hover);
+    --bs-link-hover-color: #154a8a;
+}
+
+body { min-height: 100vh; background: var(--plano); color: var(--tinta); }
+.conteudo h1, .conteudo .h3 { font-weight: 650; letter-spacing: -.01em; }
+.text-muted, .text-body-secondary { color: var(--tinta-2) !important; }
+
+/* ---------- Casca do app: menu lateral fixo + conteúdo ---------- */
+.app-shell { min-height: 100vh; }
+.app-main { min-height: 100vh; display: flex; flex-direction: column; }
+.conteudo { flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: 1.75rem 1.5rem 2rem; }
+.rodape { text-align: center; color: var(--suave); font-size: .8rem; padding: 1rem 0 1.5rem; }
+
+.sidebar {
+    --bs-offcanvas-width: 280px;
+    --bs-offcanvas-bg: var(--menu-fundo);
+    --bs-offcanvas-color: var(--menu-texto);
+    --bs-offcanvas-border-width: 0;
+    background: var(--menu-fundo);
+    color: var(--menu-texto);
+    padding: 1.1rem 1rem;
+}
+@media (min-width: 992px) {
+    .sidebar {
+        position: fixed !important; top: 0; left: 0; bottom: 0; z-index: 1030;
+        display: flex !important; flex-direction: column;
+        width: var(--largura-menu) !important; height: auto !important;
+        background: var(--menu-fundo) !important; visibility: visible !important;
+        transform: none !important; overflow-y: auto;
+    }
+    .app-main { margin-left: var(--largura-menu); }
+}
+.sidebar-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; padding: 0 .35rem; }
+.marca { display: inline-flex; align-items: center; gap: .65rem; color: #fff; text-decoration: none; }
+.marca:hover { color: #fff; }
+.marca-icone {
+    display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 10px;
+    background: var(--primaria); color: #fff; font-size: 1.15rem;
+}
+.marca-nome { font-weight: 700; font-size: 1.15rem; letter-spacing: -.01em; }
+
+.sidebar-nav { flex: 1; }
+.sidebar .nav-link {
+    display: flex; align-items: center; gap: .75rem; padding: .62rem .8rem; border-radius: 10px;
+    color: var(--menu-texto); font-weight: 500; transition: background-color .15s, color .15s;
+}
+.sidebar .nav-link .bi { font-size: 1.1rem; opacity: .85; }
+.sidebar .nav-link:hover { background: rgba(255, 255, 255, .05); color: #fff; }
+.sidebar .nav-link.active { background: var(--menu-ativo); color: #fff; box-shadow: inset 3px 0 0 #5598e7; }
+.sidebar .nav-link.active .bi { color: #86b6ef; opacity: 1; }
+.sidebar .nav-link:focus-visible, .btn-avaliar:focus-visible, .btn-sair:focus-visible { outline: 2px solid #86b6ef; outline-offset: 2px; }
+
+.sidebar-rodape { display: grid; gap: .7rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, .08); }
+.btn-avaliar {
+    display: flex; align-items: center; justify-content: center; gap: .5rem; padding: .55rem .8rem;
+    background: rgba(255, 255, 255, .06); color: #fff; border: 1px solid rgba(255, 255, 255, .12); border-radius: 10px;
+    font-weight: 500; font-size: .9rem;
+}
+.btn-avaliar:hover { background: rgba(255, 255, 255, .12); color: #fff; }
+.usuario-card { display: flex; align-items: center; gap: .7rem; padding: .35rem .3rem; }
+.usuario-avatar {
+    flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%;
+    background: var(--primaria-clara); color: var(--primaria-hover); font-weight: 700;
+}
+.usuario-dados { min-width: 0; }
+.usuario-nome { color: #fff; font-weight: 600; font-size: .9rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usuario-perfil { color: var(--menu-texto); font-size: .78rem; }
+.btn-sair {
+    display: flex; align-items: center; justify-content: center; gap: .5rem; width: 100%; padding: .5rem .8rem;
+    background: transparent; color: var(--menu-texto); border: 1px solid rgba(255, 255, 255, .12); border-radius: 10px; font-size: .9rem;
+}
+.btn-sair:hover { background: rgba(208, 59, 59, .18); color: #fff; border-color: rgba(208, 59, 59, .5); }
+
+.topbar {
+    position: sticky; top: 0; z-index: 1020; display: flex; align-items: center; gap: .75rem;
+    padding: .6rem 1rem; background: var(--menu-fundo); color: #fff;
+}
+.btn-menu { background: transparent; border: 0; color: #fff; font-size: 1.6rem; line-height: 1; padding: .1rem .35rem; }
+.topbar-marca { display: inline-flex; align-items: center; gap: .5rem; font-weight: 700; }
+
+/* ---------- Casca pública (login e erros) ---------- */
+.corpo-publico { background: radial-gradient(1200px 500px at 50% -10%, #dfe9f8 0%, var(--plano) 60%); }
+.auth-wrap { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; }
+.auth-caixa { width: 100%; max-width: 440px; }
+.auth-marca { display: flex; align-items: center; justify-content: center; gap: .7rem; margin-bottom: 1.25rem; color: var(--tinta); }
+.auth-marca .marca-icone { width: 44px; height: 44px; font-size: 1.4rem; border-radius: 12px; }
+.auth-marca .marca-nome { font-size: 1.5rem; }
+
+/* ---------- Cartões, tabelas, formulários, botões ---------- */
+.card { background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); }
+.card-header { background: transparent; border-bottom: 1px solid var(--borda); padding: .9rem 1.25rem; font-weight: 600; }
+.table { --bs-table-bg: transparent; margin-bottom: 0; }
+.table > :not(caption) > * > * { padding: .8rem 1rem; }
+.table thead th, .table-light { --bs-table-bg: #f4f4f0; --bs-table-color: var(--tinta-2); }
+.table thead th {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 650; color: var(--tinta-2);
+    border-bottom: 1px solid var(--borda); white-space: nowrap;
+}
+.table-hover > tbody > tr:hover > * { --bs-table-hover-bg: #f4f7fc; }
+.form-control, .form-select { background-color: #fff; border-color: #d3d2cb; border-radius: 10px; }
+.form-control:focus, .form-select:focus { border-color: #86b6ef; box-shadow: 0 0 0 .22rem rgba(37, 106, 191, .18); }
+.btn { border-radius: 10px; font-weight: 500; }
+.btn-primary { --bs-btn-bg: var(--primaria); --bs-btn-border-color: var(--primaria); --bs-btn-hover-bg: var(--primaria-hover); --bs-btn-hover-border-color: var(--primaria-hover); --bs-btn-active-bg: #184f95; --bs-btn-active-border-color: #184f95; --bs-btn-focus-shadow-rgb: 37, 106, 191; }
+.btn-outline-primary { --bs-btn-color: var(--primaria-hover); --bs-btn-border-color: #9ec5f4; --bs-btn-hover-bg: var(--primaria); --bs-btn-hover-border-color: var(--primaria); --bs-btn-active-bg: var(--primaria-hover); }
+.btn-outline-secondary { --bs-btn-color: var(--tinta-2); --bs-btn-border-color: #d3d2cb; --bs-btn-hover-bg: #efefea; --bs-btn-hover-color: var(--tinta); --bs-btn-hover-border-color: #c3c2b7; }
+.btn-success { --bs-btn-bg: #0a7d0a; --bs-btn-border-color: #0a7d0a; --bs-btn-hover-bg: #086808; --bs-btn-hover-border-color: #086808; }
+.btn-whatsapp {
+    display: inline-flex; align-items: center; gap: .4rem; background: #128c7e; border: 1px solid #128c7e; color: #fff; font-weight: 500;
+}
+.btn-whatsapp:hover, .btn-whatsapp:focus-visible { background: #0e7a6e; border-color: #0e7a6e; color: #fff; }
+.btn-whatsapp .bi { font-size: 1rem; }
+
+/* ---------- Selos de status: fundo suave + ícone colorido + rótulo em tinta ---------- */
+.selo-status {
+    display: inline-flex; align-items: center; gap: .38rem; padding: .22rem .65rem; border-radius: 999px;
+    font-size: .78rem; font-weight: 650; line-height: 1.3; color: var(--tinta); background: var(--neutro-suave); white-space: nowrap;
+}
+.selo-status .bi { font-size: .9rem; color: var(--suave); }
+.selo-status-pago, .selo-faixa-baixo { background: var(--bom-suave); }
+.selo-status-pago .bi, .selo-faixa-baixo .bi { color: var(--bom); }
+.selo-status-pendente, .selo-faixa-atencao { background: var(--alerta-suave); }
+.selo-status-pendente .bi, .selo-faixa-atencao .bi { color: #c98500; }
+.selo-faixa-alto { background: var(--serio-suave); }
+.selo-faixa-alto .bi { color: #d9602f; }
+.selo-status-atrasado, .selo-faixa-critico { background: var(--critico-suave); }
+.selo-status-atrasado .bi, .selo-faixa-critico .bi { color: var(--critico); }
+
+/* ---------- Cartões de métrica (KPI): rótulo, valor, nota ---------- */
+.metrica {
+    position: relative; height: 100%; padding: 1.15rem 1.25rem 1.1rem; background: var(--superficie);
+    border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra);
+}
+.metrica-topo { display: flex; align-items: center; gap: .65rem; margin-bottom: .6rem; }
+.metrica-icone {
+    flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+    background: var(--neutro-suave); color: var(--tinta-2); font-size: 1.05rem;
+}
+.metrica-rotulo { color: var(--tinta-2); font-size: .85rem; font-weight: 600; }
+.metrica-valor { font-size: 1.85rem; font-weight: 650; line-height: 1.1; letter-spacing: -.02em; color: var(--tinta); }
+.metrica-nota { margin-top: .45rem; color: var(--tinta-2); font-size: .82rem; }
+.metrica-hero .metrica-valor { font-size: 3rem; font-weight: 700; letter-spacing: -.03em; } /* o número de destaque da tela (>= 48px) */
+.metrica-critico .metrica-icone { background: var(--critico-suave); color: var(--critico); }
+.metrica-alerta .metrica-icone { background: var(--alerta-suave); color: #b57700; }
+.metrica-bom .metrica-icone { background: var(--bom-suave); color: #0a8a0a; }
+.metrica-serio .metrica-icone { background: var(--serio-suave); color: #d9602f; }
+
+/* ---------- Termômetro de Risco Fiscal (velocímetro em SVG) ---------- */
+.cartao-termometro { box-shadow: var(--sombra-forte); }
+.termometro-svg { width: 100%; max-width: 360px; height: auto; overflow: visible; }
+.zona { fill: none; stroke-width: 12; transition: opacity .3s; }
+.zona-baixo { stroke: var(--bom); }
+.zona-atencao { stroke: var(--alerta); }
+.zona-alto { stroke: var(--serio); }
+.zona-critico { stroke: var(--critico); }
+.zona-apagada { opacity: .28; }                       /* só a zona atual fica forte; as outras recuam */
+.escala-texto { fill: var(--suave); font-size: 9px; font-weight: 600; }
+.ponteiro { fill: var(--tinta); }
+.ponteiro-hub { fill: var(--tinta); stroke: var(--superficie); stroke-width: 2; }
+.ponteiro-miolo { fill: var(--superficie); }
+.termometro-valor { font-size: 3.5rem; font-weight: 700; line-height: 1; letter-spacing: -.03em; color: var(--tinta); margin-top: -.35rem; }
+.termometro-sub { color: var(--tinta-2); font-size: .82rem; margin: .35rem 0 .65rem; }
+.legenda-zonas { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem 1rem; list-style: none; margin: .85rem 0 0; padding: 0; font-size: .76rem; color: var(--tinta-2); }
+.legenda-zonas li { display: inline-flex; align-items: center; gap: .35rem; }
+.legenda-ponto { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.legenda-baixo { background: var(--bom); }
+.legenda-atencao { background: var(--alerta); }
+.legenda-alto { background: var(--serio); }
+.legenda-critico { background: var(--critico); }
+.multa-valor { font-size: 2rem; font-weight: 650; letter-spacing: -.02em; line-height: 1.1; }
+
+/* ---------- Ranking de risco (lista de medidores) ---------- */
+/* Medidor: preenchimento = severidade; trilha = passo mais claro do mesmo neutro (nunca escura). */
+.barra-risco, .barra-nota { appearance: none; -webkit-appearance: none; border: 0; border-radius: 999px; overflow: hidden; background: var(--grade); }
+.barra-risco::-webkit-progress-bar, .barra-nota::-webkit-progress-bar { background: var(--grade); border-radius: 999px; }
+.barra-risco::-webkit-progress-value, .barra-nota::-webkit-progress-value { background: var(--cor-barra, var(--primaria)); border-radius: 999px; }
+.barra-risco::-moz-progress-bar, .barra-nota::-moz-progress-bar { background: var(--cor-barra, var(--primaria)); border-radius: 999px; }
 .barra-risco { width: 100%; max-width: 9rem; height: .65rem; }
-.barra-baixo { accent-color: #198754; }
-.barra-atencao { accent-color: #ffc107; }
-.barra-alto { accent-color: #fd7e14; }
-.barra-critico { accent-color: #dc3545; }
-.selo { font-weight: 600; }
-.selo-baixo { background: #198754; color: #fff; }
-.selo-atencao { background: #ffc107; color: #000; }
-.selo-alto { background: #fd7e14; color: #000; }
-.selo-critico { background: #dc3545; color: #fff; }
-
+.barra-baixo { --cor-barra: var(--bom); }
+.barra-atencao { --cor-barra: var(--alerta); }
+.barra-alto { --cor-barra: var(--serio); }
+.barra-critico { --cor-barra: var(--critico); }
 .col-risco { min-width: 11rem; }
 
-/* --- Avaliações --- */
-.barra-nota { flex: 1; height: .8rem; accent-color: #c77700; }
+/* ---------- Avaliações ---------- */
+.barra-nota { flex: 1; height: .8rem; --cor-barra: #c77700; }
 .votos { min-width: 2rem; }
 .texto-comentario { white-space: pre-line; overflow-wrap: anywhere; } /* respeita quebras de linha e textos longos */
+
+/* ---------- Pequenos ajustes ---------- */
+.acoes-linha { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: flex-end; align-items: center; }
+.acoes-coluna { display: flex; flex-direction: column; gap: .4rem; align-items: stretch; min-width: 13rem; }
+.acoes-coluna .acoes-par { display: flex; gap: .4rem; align-items: center; justify-content: flex-end; }
+.acoes-coluna .acoes-par .form-control { min-width: 0; flex: 1; }
+.modal-content { --bs-modal-bg: var(--superficie); border: 0; border-radius: var(--raio); box-shadow: var(--sombra-forte); }
+@media (prefers-reduced-motion: reduce) { .zona, .sidebar .nav-link { transition: none; } }
+@media (max-width: 575.98px) { .metrica-hero .metrica-valor { font-size: 2.4rem; } .conteudo { padding: 1.1rem .9rem 1.5rem; } }

@@ -25,6 +25,7 @@ final class Router
 
     public function despachar(Request $req): void
     {
+        View::compartilhar('rotaAtual', $req->rota()); // o menu lateral marca a página atual
         try {
             $this->executar($req);
         } catch (HttpException $e) {

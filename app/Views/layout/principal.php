@@ -1,4 +1,40 @@
-<?php /** @var string $conteudo */ ?>
+<?php
+/**
+ * Layout único. Visitante (login, erros públicos): página centrada. Logado: menu lateral fixo
+ * (vira gaveta no celular) + área de conteúdo. Sem estilo/script inline: a CSP não permite.
+ *
+ * @var string $conteudo
+ * @var string|null $rotaAtual  compartilhada pelo Router (View::compartilhar)
+ */
+
+use App\Core\Auth;
+use App\Core\Csrf;
+use App\Core\Flash;
+use App\Core\View;
+
+$usuario = Auth::usuario();
+$rota = (string) ($rotaAtual ?? '');
+$itens = [];
+if ($usuario !== null) {
+    // [rótulo, ícone, destino, prefixos de rota que deixam o item "ativo"]
+    $itens[] = ['Painel', 'speedometer2', url('dashboard/index'), ['dashboard/']];
+    if ($usuario['perfil'] === 'contador') {
+        $itens[] = ['Empresas', 'buildings', url('empresas/index'), ['empresas/', 'usuarios/', 'obrigacoes/']];
+        $itens[] = ['Avaliações', 'star-fill', url('avaliacoes/index'), ['avaliacoes/']];
+    } else {
+        $itens[] = ['Minhas obrigações', 'receipt-cutoff', url('obrigacoes/index', ['empresa_id' => (int) $usuario['empresa_id']]), ['obrigacoes/']];
+    }
+}
+$estaAtivo = static function (array $prefixos) use ($rota): bool {
+    foreach ($prefixos as $prefixo) {
+        if (str_starts_with($rota, $prefixo)) {
+            return true;
+        }
+    }
+    return false;
+};
+$mensagens = Flash::obter();
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,40 +43,84 @@
     <title><?= e(($titulo ?? 'Início') . ' · FiscalPulse') ?></title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+          integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <link rel="stylesheet" href="assets/css/app.css">
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-dark bg-dark mb-4">
-    <div class="container">
-        <a class="navbar-brand fw-bold" href="<?= e(url('dashboard/index')) ?>">FiscalPulse</a>
-        <?php if ($logado = \App\Core\Auth::usuario()) : ?>
-            <?php if ($logado['perfil'] === 'contador') : ?>
-                <a class="nav-link text-light ms-3" href="<?= e(url('empresas/index')) ?>">Empresas</a>
-                <a class="nav-link text-light me-auto ms-3" href="<?= e(url('avaliacoes/index')) ?>">Avaliações</a>
-            <?php endif; ?>
-            <form method="post" action="<?= e(url('auth/logout')) ?>" class="d-flex align-items-center gap-3 m-0">
-                <button class="btn btn-warning btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#modalAvaliacao">Avaliar o sistema</button>
-                <span class="text-light small"><?= e($logado['nome']) ?></span>
-                <?= \App\Core\Csrf::campo() ?>
-                <button class="btn btn-outline-light btn-sm" type="submit">Sair</button>
-            </form>
-        <?php endif; ?>
-    </div>
-</nav>
-<main class="container">
-    <?php foreach (\App\Core\Flash::obter() as $msg) : ?>
-        <div class="alert alert-<?= $msg['tipo'] === 'sucesso' ? 'success' : 'danger' ?> alert-dismissible" role="alert">
-            <?= e($msg['mensagem']) ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+<body class="<?= e($usuario === null ? 'corpo-publico' : 'corpo-app') ?>">
+<?php if ($usuario !== null) : ?>
+<div class="app-shell">
+    <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="menuLateral" aria-label="Menu principal">
+        <div class="sidebar-topo">
+            <a class="marca" href="<?= e(url('dashboard/index')) ?>">
+                <span class="marca-icone"><?= icone('activity') ?></span>
+                <span class="marca-nome">FiscalPulse</span>
+            </a>
+            <button type="button" class="btn-close btn-close-white d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#menuLateral" aria-label="Fechar menu"></button>
         </div>
-    <?php endforeach; ?>
-    <?= $conteudo /* já escapado pela view que o gerou */ ?>
+
+        <nav class="sidebar-nav" aria-label="Navegação">
+            <ul class="nav flex-column gap-1">
+                <?php foreach ($itens as [$rotulo, $icone, $destino, $prefixos]) : ?>
+                    <?php $ativo = $estaAtivo($prefixos); ?>
+                    <li class="nav-item">
+                        <a class="<?= e('nav-link' . ($ativo ? ' active' : '')) ?>" href="<?= e($destino) ?>" aria-current="<?= e($ativo ? 'page' : 'false') ?>">
+                            <?= icone($icone) ?><span class="nav-rotulo"><?= e($rotulo) ?></span>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </nav>
+
+        <div class="sidebar-rodape">
+            <button class="btn btn-avaliar" type="button" data-bs-toggle="modal" data-bs-target="#modalAvaliacao">
+                <?= icone('chat-heart') ?>Avaliar o sistema
+            </button>
+            <div class="usuario-card">
+                <div class="usuario-avatar" aria-hidden="true"><?= e(iniciais($usuario['nome'])) ?></div>
+                <div class="usuario-dados">
+                    <div class="usuario-nome"><?= e($usuario['nome']) ?></div>
+                    <div class="usuario-perfil"><?= e($usuario['perfil'] === 'contador' ? 'Contador' : 'Cliente') ?></div>
+                </div>
+            </div>
+            <form method="post" action="<?= e(url('auth/logout')) ?>" class="m-0">
+                <?= Csrf::campo() ?>
+                <button class="btn btn-sair" type="submit"><?= icone('box-arrow-right') ?>Sair</button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="app-main">
+        <header class="topbar d-lg-none">
+            <button class="btn-menu" type="button" data-bs-toggle="offcanvas" data-bs-target="#menuLateral" aria-controls="menuLateral" aria-label="Abrir menu"><?= icone('list') ?></button>
+            <span class="topbar-marca"><?= icone('activity') ?>FiscalPulse</span>
+        </header>
+        <main class="conteudo">
+<?php else : ?>
+<main class="auth-wrap">
+    <div class="auth-caixa">
+<?php endif; ?>
+            <?php foreach ($mensagens as $msg) : ?>
+                <div class="<?= e('alert alert-dismissible ' . ($msg['tipo'] === 'sucesso' ? 'alert-success' : 'alert-danger')) ?>" role="alert">
+                    <?= e($msg['mensagem']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+            <?php endforeach; ?>
+            <?= $conteudo /* já escapado pela view que o gerou */ ?>
+<?php if ($usuario !== null) : ?>
+        </main>
+        <footer class="rodape">FiscalPulse · MVP acadêmico</footer>
+    </div>
+</div>
+<?php else : ?>
+    </div>
 </main>
-<footer class="container text-center text-muted small py-4">FiscalPulse · MVP acadêmico</footer>
+<?php endif; ?>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-<?php if ($logado) : ?>
-<?php \App\Core\View::parcial('partials/avaliacao_modal'); ?>
+<?php if ($usuario !== null) : ?>
+<?php View::parcial('partials/avaliacao_modal'); ?>
 <script src="assets/js/avaliacao.js"></script>
 <?php endif; ?>
 <script src="assets/js/app.js"></script>
