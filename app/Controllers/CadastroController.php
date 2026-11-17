@@ -20,14 +20,28 @@ use App\Services\ValidadorEmpresa;
  */
 final class CadastroController
 {
+    /**
+     * Campos de texto que voltam preenchidos na tela depois de um erro. As senhas ficam DE FORA de propósito
+     * (ver salvar): nunca devolver uma senha digitada para o HTML, nem escapada.
+     */
     private const CAMPOS = ['nome', 'email', 'cpf', 'telefone', 'razao_social', 'cnpj', 'regime_tributario'];
 
+    /** GET: mostra o formulário vazio (200). Quem já está logado é mandado ao painel. */
     public function formulario(Request $req): void
     {
         $this->irParaPainelSeLogado();
         $this->exibir(200, array_fill_keys(self::CAMPOS, ''), []);
     }
 
+    /**
+     * POST: o passo a passo, na ordem em que importa.
+     *  1. Quem já está logado vai ao painel (não faz sentido criar outra conta).
+     *  2. O token CSRF já foi exigido pelo Router antes de chegar aqui (vale para todo POST).
+     *  3. Limite de envios por sessão, conferido ANTES de qualquer trabalho caro (validar e gravar).
+     *  4. Validação dos campos (pura, sem banco) e depois a gravação atômica (CadastroService).
+     *  5. Sucesso: já entra logado e vai ao painel. Falha: mostra o formulário de novo, com o status certo
+     *     (422 = dados recusados, 429 = muitas tentativas).
+     */
     public function salvar(Request $req): void
     {
         $this->irParaPainelSeLogado();
@@ -38,11 +52,13 @@ final class CadastroController
         $limite = new LimiteTentativas($_SESSION['limite_cadastro'], 5, 600);
         $agora = time();
 
+        // Lê só os campos conhecidos (lista fixa): qualquer outro valor enviado, como perfil ou empresa_id,
+        // simplesmente nunca é lido, então não há como forjar o perfil ou a empresa pelo formulário.
         $entrada = [];
         foreach ([...self::CAMPOS, 'senha', 'senha_confirmacao'] as $campo) {
             $entrada[$campo] = $req->post($campo) ?? '';
         }
-        // A senha NUNCA volta para a tela.
+        // A senha NUNCA volta para a tela: $valores é a entrada sem as duas senhas.
         $valores = array_intersect_key($entrada, array_flip(self::CAMPOS));
 
         if ($limite->bloqueado($agora)) {
@@ -50,6 +66,7 @@ final class CadastroController
             $this->exibir(429, $valores, ['geral' => "Muitas tentativas de cadastro. Aguarde $minutos minuto(s) e tente novamente."]);
             return;
         }
+        // Conta o envio JÁ AQUI (e não só quando falha): assim também limita quem cria muitas contas válidas seguidas.
         $limite->registrarFalha($agora);
 
         $r = ValidadorCadastro::validar($entrada);
@@ -58,7 +75,9 @@ final class CadastroController
             $resultado = CadastroService::cadastrar(Database::conexao(), $r['dados']);
             $erros = $resultado['erros'];
             if ($erros === []) {
-                Auth::entrar($resultado['usuario']); // já entra logada (o ID da sessão é renovado)
+                // Auth::entrar renova o ID da sessão (contra fixação de sessão) e troca o token CSRF. O redirecionar()
+                // encerra a requisição, por isso o exibir() lá embaixo só roda quando algo deu errado.
+                Auth::entrar($resultado['usuario']);
                 Flash::definir('sucesso', 'Conta criada! Você já está dentro. Seu contador verá a sua empresa e poderá cadastrar as suas obrigações.');
                 redirecionar('dashboard/index');
             }

@@ -47,8 +47,11 @@ final class CadastroService
             return ['usuario' => null, 'erros' => $erros];
         }
 
+        // A partir daqui são DOIS INSERTs que só fazem sentido juntos (a empresa e o dono dela). A transação
+        // garante tudo-ou-nada: se o segundo falhar, o primeiro é desfeito e não sobra empresa sem usuário.
         $pdo->beginTransaction();
         try {
+            // O perfil NÃO vem de $dados: criarCliente grava sempre "cliente", e a empresa é a que acabou de ser criada.
             $empresaId = $empresas->criar([
                 'razao_social' => (string) $dados['razao_social'],
                 'cnpj' => (string) $dados['cnpj'],
@@ -65,17 +68,20 @@ final class CadastroService
             );
             $pdo->commit();
         } catch (PDOException $e) {
+            // Desfaz o que já tinha sido gravado (a empresa), mesmo quando o erro é inesperado; só então decide o que fazer.
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
             if (($e->errorInfo[1] ?? 0) === self::MYSQL_DUPLICADO) {
-                // Corrida: duas pessoas passaram na conferência ao mesmo tempo; o UNIQUE decidiu.
+                // Corrida: duas pessoas passaram na conferência ao mesmo tempo; o UNIQUE decidiu. A mensagem do banco
+                // cita o nome da chave (uq_empresas_cnpj ou uq_usuarios_email), o que revela qual campo repetiu.
                 $campo = str_contains((string) ($e->errorInfo[2] ?? ''), 'cnpj') ? 'cnpj' : 'email';
                 return ['usuario' => null, 'erros' => [$campo => $campo === 'cnpj' ? self::MENSAGEM_CNPJ : self::MENSAGEM_EMAIL]];
             }
             throw $e;
         }
 
+        // Devolve só o que o login precisa (nunca o hash da senha).
         return [
             'usuario' => ['id' => $usuarioId, 'nome' => (string) $dados['nome'], 'perfil' => 'cliente', 'empresa_id' => $empresaId],
             'erros' => [],

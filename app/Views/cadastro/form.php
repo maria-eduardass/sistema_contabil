@@ -9,6 +9,9 @@ use App\Core\Csrf;
  * @var array<string,string> $erros    por campo (+ "geral")
  * @var array<string,string> $regimes  chave => rótulo
  */
+// Duas funções pequenas só para não repetir a mesma lógica em cada campo:
+//  $classe(campo) devolve as classes do input, marcando com is-invalid se o campo tem erro;
+//  $erro(campo) devolve o aviso vermelho sob o campo (a mensagem passa por e(), então é seguro imprimir o resultado).
 $classe = static fn (string $campo, string $base = 'form-control'): string => $base . (isset($erros[$campo]) ? ' is-invalid' : '');
 $erro = static fn (string $campo): string => isset($erros[$campo])
     ? '<div class="invalid-feedback">' . e($erros[$campo]) . '</div>' : '';
@@ -26,6 +29,8 @@ $erro = static fn (string $campo): string => isset($erros[$campo])
             <div class="alert alert-danger py-2 d-flex align-items-center gap-2" role="alert"><?= icone('exclamation-triangle-fill') ?><span><?= e($erros['geral']) ?></span></div>
         <?php endif; ?>
 
+        <?php /* novalidate: quem valida é o servidor (ValidadorCadastro), com mensagens por campo; o navegador não
+                 bloqueia o envio com balões próprios. O token CSRF é obrigatório: o Router recusa o POST sem ele. */ ?>
         <form method="post" action="<?= e(url('cadastro/salvar')) ?>" novalidate>
             <?= Csrf::campo() ?>
 
@@ -53,6 +58,8 @@ $erro = static fn (string $campo): string => isset($erros[$campo])
                     <?= $erro('telefone') ?>
                 </div>
             </div>
+            <?php /* Senhas: nenhum atributo value (nunca voltam preenchidas), autocomplete new-password para o navegador
+                     oferecer gerar uma senha, e maxlength 72 porque o bcrypt só usa os 72 primeiros bytes. */ ?>
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label" for="senha">Senha</label>
@@ -67,6 +74,8 @@ $erro = static fn (string $campo): string => isset($erros[$campo])
                 </div>
             </div>
 
+            <?php /* A empresa criada aqui é a única que esta conta vai enxergar. Se o CNPJ já existir, o cadastro é recusado
+                     (ver CadastroService): não dá para entrar na empresa de um cliente do escritório digitando o CNPJ dele. */ ?>
             <h2 class="h6 text-uppercase text-muted mt-2 mb-3"><?= icone('buildings') ?> Sua empresa</h2>
             <div class="mb-3">
                 <label class="form-label" for="razao_social">Razão social</label>
