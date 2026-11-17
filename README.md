@@ -10,7 +10,8 @@ Stack: **PHP 8.2 puro** (MVC estrito, front-controller `index.php`, sem framewor
 
 **Destaques:** menu lateral fixo com ícones · resumo financeiro no topo do painel (em atraso, a vencer em 7 dias,
 pago no mês) · velocímetro do Termômetro de Risco · botão **Cobrar no WhatsApp** com a mensagem pronta · selos
-de status (Pago / Pendente / Atrasado) · modal de avaliação do sistema · **Criar conta** (autocadastro de cliente + empresa).
+de status (Pago / Pendente / Atrasado) · modal de avaliação do sistema · **Criar conta** (autocadastro de cliente + empresa) · **obrigações cadastradas pelo próprio dono da
+empresa**, com **prévia ao vivo** de como cada guia muda o termômetro.
 
 ---
 
@@ -49,7 +50,9 @@ As datas do seed são relativas a "hoje", então a demonstração sempre mostra 
    (empresa, guia, vencimento e valor atualizado com multa). Depois use **Pagar** (DAS e FGTS): o score cai,
    os cartões e o ranking mudam.
 4. **Empresas → Nova empresa**, depois **Novo usuário** na página da empresa: crie um cliente e entre com ele.
-5. Como **cliente**: veja o termômetro e as próximas obrigações; tente abrir a empresa de outro cliente (**403**).
+5. Como **cliente** (ou com a conta que você criar no passo 6): em **Minhas obrigações → Nova obrigação**, clique no atalho **15 dias atrás**
+   e veja a **prévia** ("Hoje 0% → Com esta obrigação 100%, Risco crítico"); salve e o termômetro fica **vermelho**; use **Pagar** e ele volta a
+   verde. Cada ação diz como o termômetro mudou. Tente abrir ou mexer na empresa ou na obrigação de outro cliente (**403**).
 6. Na tela de entrada, **Criar conta**: cadastre uma empresa nova (qualquer CNPJ de 14 números que ainda não exista) e um acesso de
    cliente, com CPF e telefone opcionais. **Neste cadastro (projeto escolar) a senha e os números aceitam qualquer coisa.** Você já entra
    logado e só enxerga a empresa que criou; o contador passa a vê-la no ranking e, na página da empresa, vê o CPF e o telefone informados.
@@ -85,6 +88,12 @@ As cores são a paleta de **status** e **nunca aparecem sozinhas**: toda faixa e
 **Cobrar no WhatsApp:** gera um link `wa.me` com o texto pronto — empresa, guia, vencimento e valor original/atualizado
 (atrasada) ou um lembrete (a vencer). É o próprio contador que revisa e envia; nenhum dado é enviado pelo servidor.
 Como o cadastro da empresa guarda só e-mail, o destinatário é escolhido no WhatsApp.
+
+**Prévia do termômetro ao cadastrar uma obrigação:** no formulário, ao escolher o vencimento (ou um atalho de data) e o valor, a tela
+mostra o termômetro de hoje e o que ele passaria a ser com a guia nova. O cálculo é feito **no servidor, com as mesmas regras do
+termômetro real** (`SimulacaoTermometro` usa o mesmo `TermometroEmpresa`), então a prévia nunca promete um número diferente do que
+aparece depois de salvar; não existe uma segunda cópia da fórmula em JavaScript. Depois de criar, pagar ou excluir uma guia, a tela diz
+"O termômetro foi de X% para Y%", e o cartão do termômetro ganha a cor da faixa (vermelho no crítico).
 
 **Multa estimada (só atrasadas):** multa de 0,33% ao dia, teto de 20% + juros de 1% ao mês proporcionais aos dias.
 Ex.: R$ 1.000,00 com 10 dias = R$ 33,00 + R$ 3,33 = **R$ 36,33**. Todo cálculo usa **centavos inteiros**
@@ -129,8 +138,8 @@ em banco nem em relógio global ("hoje" é injetado) —, o que permite testá-l
 ## 4. Testes
 
 ```powershell
-C:\xampp\php\php.exe testes.php                  # 269 testes unitários (não precisam de banco)
-C:\xampp\php\php.exe testes.php --integracao     # + 82 de integração = 351 (usam o banco fiscalpulse_teste)
+C:\xampp\php\php.exe testes.php                  # 301 testes unitários (não precisam de banco)
+C:\xampp\php\php.exe testes.php --integracao     # + 82 de integração = 383 (usam o banco fiscalpulse_teste)
 # ou no navegador (somente da própria máquina): http://localhost/sistema_contabil/testes.php
 Get-ChildItem -Recurse -Filter *.php | ForEach-Object { C:\xampp\php\php.exe -l $_.FullName }   # linter
 ```
@@ -141,11 +150,11 @@ e sai com código 1 se algo falhar. Os testes de integração **recriam** o banc
 
 | Tipo | Casos | Suítes |
 |---|---|---|
-| Regra de negócio pura (score, multa, termômetro da empresa, ranking, próximas, média das avaliações, resumo financeiro, mensagem de cobrança) | 99 | `TermometroRisco` 23, `MultaService` 12, `TermometroEmpresa` 13, `RankingRisco` 8, `ProximasObrigacoes` 6, `AvaliacaoResumo` 5, `ResumoFinanceiro` 13, `MensagemCobranca` 19 |
+| Regra de negócio pura (score, multa, termômetro da empresa, ranking, próximas, média das avaliações, resumo financeiro, mensagem de cobrança, **simulação do termômetro**) | 114 | `TermometroRisco` 23, `SimulacaoTermometro` 15, `MultaService` 12, `TermometroEmpresa` 13, `RankingRisco` 8, `ProximasObrigacoes` 6, `AvaliacaoResumo` 5, `ResumoFinanceiro` 13, `MensagemCobranca` 19 |
 | Validação (CNPJ, valor BR, datas, e-mail, senha, formulários, cadastro) | 66 | `Validator` 14, `ValidadorEmpresa` 9, `ValidadorUsuario` 9, `ValidadorObrigacao` 9, `ValidadorAvaliacao` 7, `ValidadorCadastro` 18 |
-| Segurança, sem banco (CSRF, login, sessão, acesso por perfil/empresa, cabeçalhos, política de rotas, varredura estática do código) | 52 | `Csrf` 7, `Auth` 7, `LimiteTentativas` 6, `Guarda` 9, `Cabecalhos` 8, `Rotas` 7, `SegurancaEstatica` 8 |
+| Segurança, sem banco (CSRF, login, sessão, acesso por perfil/empresa, cabeçalhos, política de rotas, varredura estática do código) | 55 | `Csrf` 7, `Auth` 7, `LimiteTentativas` 6, `Guarda` 9, `Cabecalhos` 8, `Rotas` 10, `SegurancaEstatica` 8 |
 | **Integração com o banco** (constraints `UNIQUE`/`FK`/`CHECK`, SQL Injection, status, pagamento, pagos no período, **autocadastro atômico**, modo estrito) | 82 | `Usuario` 17, `Empresa` 11, `Obrigacao` 16, `Avaliacao` 8, `StatusService` 14, `CadastroService` 12, `Database` 4 |
-| Núcleo e interface (escape, URLs, Request, Env, Logger, flash, formatação, selos/ícones, **layout e menu lateral**) | 52 | `Nucleo` 19, `Flash` 4, `Layout` 14, `CadastroView` 15 |
+| Núcleo e interface (escape, URLs, Request, Env, Logger, flash, formatação, selos/ícones, **layout e menu lateral**) | 66 | `Nucleo` 19, `Flash` 4, `Layout` 14, `CadastroView` 15, `ObrigacaoView` 14 |
 
 A meta de 80% foi tratada como **cobertura por casos**: cada ramo (`if`/`match`) da lógica de negócio tem pelo
 menos um caso (limites 15/16 dias, teto de 100, teto de 20% da multa, 29/30, 59/60, 79/80, entradas inválidas).
@@ -167,13 +176,14 @@ Não há medição automática de cobertura de linhas (exigiria Xdebug/PHPUnit).
 | Autocadastro (rota pública) | **Modo escolar: senha e números livres** (só os limites técnicos: 72 bytes de senha, 14 dígitos de CNPJ, 30 caracteres em CPF/telefone). Cria **sempre um cliente** com a **própria empresa nova**, numa transação (nunca sobra empresa sem dono): perfil, situação e empresa não vêm do formulário; CNPJ de empresa que já existe é **recusado** (não dá para "entrar" na empresa de um cliente do escritório); CSRF obrigatório; 5 envios a cada 10 min por sessão |
 | Banco em modo estrito | A conexão liga `STRICT_TRANS_TABLES` por sessão: texto maior que a coluna ou ENUM inválido **dá erro** em vez de ser cortado em silêncio (o MariaDB do XAMPP vem sem isso) |
 | Controle de acesso | 2 camadas: por **rota** (`publico/logado/contador/cliente`, padrão `logado`, nega na dúvida) — as únicas rotas públicas são entrar e criar conta, travadas por um teste e por **objeto** (cliente só acessa a própria empresa; empresa alheia e inexistente dão o mesmo 403) |
+| Obrigações pelo dono | O cliente cria, paga e exclui só as obrigações da **própria** empresa. As rotas são `logado` (não só contador) e o controller confere o dono (`Guarda::exigirEmpresa`) em **toda** ação, antes de consultar o banco; o `empresa_id` do formulário é conferido (não dá para trocá-lo no HTML); obrigação alheia e obrigação inexistente dão o **mesmo 403** (não revela quais ids existem); um teste falha se alguém remover essas conferências |
 | Mass assignment | Cada validador lê só os campos do formulário; status, perfil, empresa e usuário vêm do servidor/sessão |
 | Integridade | `CHECK`, `FK` e `UNIQUE` no banco como segunda barreira; pagamento atômico (`UPDATE … WHERE status <> 'pago'`) |
 | Erros | Páginas genéricas 403/404/405/500; o detalhe vai para `storage/logs/` |
 | Arquivos | `.htaccess` bloqueia `app/`, `config/`, `storage/`, `testes/`, `.env`, `.sql`, `.md` e a listagem de pastas; `testes.php` só abre da própria máquina |
 | Cabeçalhos | CSP (scripts, estilos e fontes só do próprio site e do CDN do Bootstrap), `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, `Cache-Control: no-store`, HSTS (só em HTTPS) |
 
-### Checklist manual executado em 17/11/2026 — 154 de 154 itens passaram (reexecutado após a nova interface e o autocadastro)
+### Checklist manual executado em 17/11/2026 — 190 de 190 itens passaram (reexecutado após a nova interface e o autocadastro)
 
 Roteiro reproduzível: `bash testes/checklist_seguranca.sh` (com Apache e MySQL ligados; usa Git Bash e `curl`).
 Ele cria dados de teste, apaga tudo no final e confere que o banco voltou ao estado do seed.
@@ -191,6 +201,7 @@ Ele cria dados de teste, apaga tudo no final e confere que o banco voltou ao est
 | 9. Erros | 9 | 404/405 sem caminhos ou trace; **falha real de banco** (500) sem vazar banco/usuário/SQLSTATE, com o detalhe no log |
 | 10. Cabeçalhos | 11 | CSP e demais cabeçalhos na página e no JSON |
 | 11. Autocadastro | 36 | CSRF, formulário vazio, **CNPJ de cliente existente recusado** (nada é criado), e-mail repetido, XSS e senha que não volta na tela, `perfil`/`empresa_id`/`ativo` forjados ignorados, conta nova presa à própria empresa (403 no resto), logada não recadastra, 6º envio seguido bloqueado (429); **modo escolar**: senha "1", CNPJ inventado e `<script>` no CPF são aceitos e o texto sai escapado para o contador, enquanto o formulário do contador continua exigindo senha forte |
+| 12. Obrigações pelo dono | 35 | o dono cria, paga e exclui só as PRÓPRIAS obrigações; formulário, prévia e POST de outra empresa dão 403; `empresa_id` forjado dá 403 e não cria nada; obrigação alheia ou inexistente dá o mesmo 403 (o contador recebe 404); sem CSRF dá 403; pagar duas vezes ou excluir guia paga dá 409; data futura dá 422; o termômetro vai a **crítico** e volta a **baixo**; o seed não muda |
 
 Além do roteiro, foi feita a **verificação da CSP em navegador real** (Edge): as telas principais, incluindo modal,
 menu lateral, velocímetro e os ícones (fonte carregada do CDN), abriram com **0 violações** e **0 erros de console**.
@@ -208,6 +219,7 @@ foram **bloqueados** pelo navegador. O layout também foi medido em janelas de 4
 - O checklist é um teste de caixa-preta por `curl`, **não** um teste de intrusão profissional.
 - A multa é uma **estimativa** simplificada (ver seção 2), sem a multa mínima da Receita nem a SELIC.
 - O **WhatsApp** abre sem número de destino (o cadastro só tem e-mail); guardar o telefone da empresa exigiria uma coluna nova no banco.
+- O dono marca as **próprias** guias como pagas por autodeclaração (sem comprovante): é o que permite ver o termômetro voltar ao verde, mas em produção o pagamento deveria ser conferido pelo contador.
 - Interface somente em **tema claro**; Bootstrap e Bootstrap Icons dependem do CDN (com SRI) — sem internet, o visual cai para o básico.
 
 ---

@@ -31,7 +31,17 @@ login() { jar=$1; t=$(tok "$jar" auth/login); curl -s -o /dev/null -w '%{http_co
 post()  { jar=$1; rota=$2; shift 2; t=$(tok "$jar" dashboard/index); curl -s -o "$TMP/pag.html" -w '%{http_code}' -b "$jar" -c "$jar" -X POST "$IDX?rota=$rota" --data-urlencode "csrf_token=$t" "$@"; }
 sid()   { grep FISCALPULSE "$1" | awk '{print $7}'; }
 
+# ---- Verificação prévia: este roteiro CRIA e depois APAGA dados identificados por e-mail/CNPJ de teste. Se algum deles
+# já existir (pode ser um dado SEU), ele aborta aqui, sem alterar nada, para nunca apagar o que não criou.
+EXISTENTES="$($SQL "select concat('empresa ', cnpj) from empresas where cnpj in ('91827364000103','91827364000200','91827364000300','91827364000400') union all select concat('usuário ', email) from usuarios where email in ('perfil@x.test','cad.teste@padaria.test','cad2.teste@padaria.test','cad3.teste@padaria.test','fraco@x.test','intruso@x.test') union all select concat('avaliação ', id) from avaliacoes where usuario_id = 1 and comentario = '<script>alert(1)</script>'")"
+if [ -n "$EXISTENTES" ]; then
+  echo "ABORTADO: já existem dados com os identificadores de teste (talvez de uma execução interrompida ou seus):"; echo "$EXISTENTES"
+  echo "Nada foi alterado. Remova-os ou mude os identificadores no roteiro e rode de novo."; rm -rf "$TMP"; exit 2
+fi
+
 CJ=$TMP/contador.txt; KJ=$TMP/cliente.txt
+# Fotografia inicial: as verificações comparam com ISTO, nunca com um número fixo (existem contas reais no banco).
+CNT0="$($SQL 'select count(*) from empresas') $($SQL 'select count(*) from usuarios')"
 login "$CJ" contador@fiscalpulse.test 'Contador@123' >/dev/null
 login "$KJ" cliente1@fiscalpulse.test 'Cliente@123' >/dev/null
 HOJE=$(date +%F); MES=$(date +%Y-%m); FUT=$(date -d '+20 days' +%F)
@@ -44,21 +54,21 @@ igual "SQLi-3a busca com UNION SELECT responde normalmente (200)" 200 "$(busca "
 zero "SQLi-3b busca com UNION SELECT não vaza hashes de senha" "$(grep -c '\$2y\$' $TMP/pag.html)"
 zero "SQLi-4 busca com UNION SELECT não mostra erro de SQL" "$(grep -ciE 'SQL syntax|SQLSTATE|PDOException|mysql' $TMP/pag.html)"
 busca "" >/dev/null
-igual "SQLi-4a validação do seletor: a listagem sem filtro mostra as 3 empresas (se isto falhar, os itens 4b/4c não provam nada)" 3 "$(grep -c '<span class="selo-status' $TMP/pag.html)"
+igual "SQLi-4a validação do seletor: a listagem sem filtro mostra TODAS as empresas (se isto falhar, os itens 4b/4c não provam nada)" "$($SQL 'select count(*) from empresas')" "$(grep -c '<span class="selo-status' $TMP/pag.html)"
 busca "' OR 'a'='a' -- " >/dev/null
 igual "SQLi-4b tautologia ' OR 'a'='a não devolve todas as empresas (0 linhas)" 0 "$(grep -c '<span class="selo-status' $TMP/pag.html)"
 busca "%' OR 1=1 -- " >/dev/null
-igual "SQLi-4c ' OR 1=1 só casa o CNPJ legítimo pelos dígitos '11' (2 de 3 empresas, nunca todas)" 2 "$(grep -c '<span class="selo-status' $TMP/pag.html)"
+igual "SQLi-4c ' OR 1=1 só casa os CNPJs que realmente contêm os dígitos '11' (a busca legítima), nunca todas as linhas" "$($SQL "select count(*) from empresas where cnpj like '%11%'")" "$(grep -c '<span class="selo-status' $TMP/pag.html)"
 ini=$(date +%s%N); busca "x' AND SLEEP(4) -- " >/dev/null; ms=$(( ($(date +%s%N) - ini) / 1000000 ))
 if [ $ms -lt 3000 ]; then ok "SQLi-4d injeção por tempo (SLEEP 4s) não atrasa a resposta (${ms} ms)"; else falha "SQLi-4d SLEEP" "${ms} ms"; fi
 igual "SQLi-5 ?id=1 OR 1=1 é rejeitado (404)" 404 "$(get "$CJ" 'empresas/ver&id=1%20OR%201=1')"
 igual "SQLi-6 ?id=1;DROP TABLE é rejeitado (404)" 404 "$(get "$CJ" 'empresas/editar&id=1;DROP%20TABLE%20empresas')"
 igual "SQLi-7 tipo_obrigacao_id injetado é rejeitado (422)" 422 "$(post "$CJ" obrigacoes/salvar --data-urlencode empresa_id=1 --data-urlencode 'tipo_obrigacao_id=5 OR 1=1' --data-urlencode competencia=$MES --data-urlencode data_vencimento=$FUT)"
-igual "SQLi-8 as tabelas continuam íntegras (3 empresas, 3 usuários)" "3 3" "$($SQL 'select count(*) from empresas' ) $($SQL 'select count(*) from usuarios')"
+igual "SQLi-8 as tabelas continuam íntegras (mesma quantidade de empresas e usuários do início)" "$CNT0" "$($SQL 'select count(*) from empresas' ) $($SQL 'select count(*) from usuarios')"
 
 echo "=== 2. XSS ARMAZENADO (dados gravados e depois exibidos)"
-igual "XSS-A cadastra empresa com <script> na razão social" 302 "$(post "$CJ" empresas/salvar --data-urlencode 'razao_social=<script>alert(1)</script> Ltda' --data-urlencode cnpj=45.723.174/0001-10 --data-urlencode regime_tributario=mei --data-urlencode email_contato=x@y.test)"
-EID=$($SQL "select id from empresas where cnpj='45723174000110'")
+igual "XSS-A cadastra empresa com <script> na razão social" 302 "$(post "$CJ" empresas/salvar --data-urlencode 'razao_social=<script>alert(1)</script> Ltda' --data-urlencode cnpj=91.827.364/0001-03 --data-urlencode regime_tributario=mei --data-urlencode email_contato=x@y.test)"
+EID=$($SQL "select id from empresas where cnpj='91827364000103'")
 igual "XSS-B cadastra obrigação com \"><img onerror> na observação" 302 "$(post "$CJ" obrigacoes/salvar --data-urlencode empresa_id=$EID --data-urlencode tipo_obrigacao_id=5 --data-urlencode competencia=$MES --data-urlencode data_vencimento=$FUT --data-urlencode valor=10 --data-urlencode 'observacao="><img src=x onerror=alert(1)>')"
 for rota in "empresas/index" "empresas/ver&id=$EID" "empresas/editar&id=$EID" "dashboard/contador"; do
   get "$CJ" "$rota" >/dev/null
@@ -108,16 +118,17 @@ done
 igual "IDOR-JSON a resposta 403 do cliente não revela se a empresa existe (id 2 e id 999 iguais)" "403 403" "$(get "$KJ" 'termometro/json&empresa_id=2') $(get "$KJ" 'termometro/json&empresa_id=999')"
 
 echo "=== 6. ESCALADA DE PERFIL (cliente tentando agir como contador)"
-for rota in empresas/index empresas/criar "empresas/editar&id=1" "usuarios/criar&empresa_id=1" "obrigacoes/criar&empresa_id=1" avaliacoes/index dashboard/contador; do
+for rota in empresas/index empresas/criar "empresas/editar&id=1" "usuarios/criar&empresa_id=1" "obrigacoes/criar&empresa_id=2" avaliacoes/index dashboard/contador; do
   igual "Escalada GET $rota" 403 "$(get "$KJ" "$rota")"
 done
-ANTES="$($SQL 'select ativa from empresas where id=1') $($SQL "select status from obrigacoes where id=1") $($SQL 'select count(*) from obrigacoes') $($SQL 'select count(*) from usuarios') $($SQL 'select count(*) from empresas')"
-igual "Escalada POST empresas/salvar" 403 "$(post "$KJ" empresas/salvar --data-urlencode razao_social=Hack --data-urlencode cnpj=45723174000110)"
+ANTES="$($SQL 'select ativa from empresas where id=1') $($SQL "select status from obrigacoes where id=4") $($SQL 'select count(*) from obrigacoes') $($SQL 'select count(*) from usuarios') $($SQL 'select count(*) from empresas')"
+igual "Escalada POST empresas/salvar" 403 "$(post "$KJ" empresas/salvar --data-urlencode razao_social=Hack --data-urlencode cnpj=91827364000103)"
 igual "Escalada POST empresas/inativar" 403 "$(post "$KJ" empresas/inativar --data-urlencode id=1)"
-igual "Escalada POST obrigacoes/pagar" 403 "$(post "$KJ" obrigacoes/pagar --data-urlencode id=1 --data-urlencode data_pagamento=$HOJE)"
-igual "Escalada POST obrigacoes/excluir" 403 "$(post "$KJ" obrigacoes/excluir --data-urlencode id=1)"
+igual "Escalada POST obrigacoes/pagar (obrigação da empresa 2, que não é do cliente1)" 403 "$(post "$KJ" obrigacoes/pagar --data-urlencode id=4 --data-urlencode data_pagamento=$HOJE)"
+igual "Escalada POST obrigacoes/excluir (obrigação da empresa 2)" 403 "$(post "$KJ" obrigacoes/excluir --data-urlencode id=4)"
+igual "Escalada POST obrigacoes/salvar com empresa_id da empresa 2 (forjado)" 403 "$(post "$KJ" obrigacoes/salvar --data-urlencode empresa_id=2 --data-urlencode tipo_obrigacao_id=1 --data-urlencode competencia=$MES --data-urlencode data_vencimento=$HOJE --data-urlencode valor=1)"
 igual "Escalada POST usuarios/salvar" 403 "$(post "$KJ" usuarios/salvar --data-urlencode empresa_id=1 --data-urlencode nome=Hack --data-urlencode email=hack@x.test --data-urlencode senha=Senha@123)"
-DEPOIS="$($SQL 'select ativa from empresas where id=1') $($SQL "select status from obrigacoes where id=1") $($SQL 'select count(*) from obrigacoes') $($SQL 'select count(*) from usuarios') $($SQL 'select count(*) from empresas')"
+DEPOIS="$($SQL 'select ativa from empresas where id=1') $($SQL "select status from obrigacoes where id=4") $($SQL 'select count(*) from obrigacoes') $($SQL 'select count(*) from usuarios') $($SQL 'select count(*) from empresas')"
 igual "Escalada: nenhum dado foi alterado pelas tentativas do cliente" "$ANTES" "$DEPOIS"
 post "$CJ" usuarios/salvar --data-urlencode empresa_id=3 --data-urlencode 'nome=Tentativa Perfil' --data-urlencode email=perfil@x.test --data-urlencode senha=Senha@123 --data-urlencode perfil=contador --data-urlencode ativo=0 >/dev/null
 igual "Mass assignment: perfil=contador no formulário é ignorado (grava cliente, ativo)" "cliente 1" "$($SQL "select concat(perfil,' ',ativo) from usuarios where email='perfil@x.test'")"
@@ -193,7 +204,7 @@ echo "=== 11. AUTOCADASTRO (rota pública \"Criar conta\")"
 # usa um jar próprio de propósito: o limite de 5 envios é por sessão, e assim uma verificação não bloqueia a seguinte.
 cadastrar() { jar=$1; shift; t=$(tok "$jar" cadastro/novo); curl -s -o "$TMP/pag.html" -w '%{http_code}' -b "$jar" -c "$jar" -X POST "$IDX?rota=cadastro/salvar" --data-urlencode "csrf_token=$t" "$@"; }
 # Dados de um cadastro válido, reaproveitados (e alterados campo a campo) pelas verificações abaixo.
-CAD_OK=(--data-urlencode 'nome=Conta Teste' --data-urlencode 'email=cad.teste@padaria.test' --data-urlencode 'senha=Senha@123' --data-urlencode 'senha_confirmacao=Senha@123' --data-urlencode 'razao_social=Empresa de Teste Ltda' --data-urlencode 'cnpj=12.345.678/0001-95' --data-urlencode regime_tributario=mei)
+CAD_OK=(--data-urlencode 'nome=Conta Teste' --data-urlencode 'email=cad.teste@padaria.test' --data-urlencode 'senha=Senha@123' --data-urlencode 'senha_confirmacao=Senha@123' --data-urlencode 'razao_social=Empresa de Teste Ltda' --data-urlencode 'cnpj=91.827.364/0002-00' --data-urlencode regime_tributario=mei)
 # Fotografia do banco ANTES das tentativas recusadas, para provar depois que elas não criaram nada.
 CNT_ANTES="$($SQL 'select count(*) from empresas')/$($SQL 'select count(*) from usuarios')"
 igual "Cadastro-1 a tela de criar conta abre para visitante (200)" 200 "$(code "$IDX?rota=cadastro/novo")"
@@ -228,7 +239,7 @@ igual "Cadastro-20 o 6º envio seguido na mesma sessão é bloqueado (429)" "422
 
 # Modo escolar: o mesmo cadastro, mas com senha "1", CNPJ inventado e CPF/telefone com texto qualquer.
 LIVRE=(--data-urlencode 'nome=Aluno Livre' --data-urlencode 'email=cad2.teste@padaria.test' --data-urlencode 'razao_social=Escola de Teste Ltda' --data-urlencode regime_tributario=mei)
-igual "Cadastro-21 projeto escolar: senha \"1\", CNPJ de dígito inventado e CPF/telefone qualquer texto são aceitos (302)" 302 "$(cadastrar $TMP/cd8.txt "${LIVRE[@]}" --data-urlencode senha=1 --data-urlencode senha_confirmacao=1 --data-urlencode cnpj=22222222222222 --data-urlencode 'cpf=<script>alert(1)</script>' --data-urlencode 'telefone=abc ???')"
+igual "Cadastro-21 projeto escolar: senha \"1\", CNPJ de dígito inventado e CPF/telefone qualquer texto são aceitos (302)" 302 "$(cadastrar $TMP/cd8.txt "${LIVRE[@]}" --data-urlencode senha=1 --data-urlencode senha_confirmacao=1 --data-urlencode cnpj=91827364000300 --data-urlencode 'cpf=<script>alert(1)</script>' --data-urlencode 'telefone=abc ???')"
 igual "Cadastro-22 CPF e telefone foram gravados exatamente como digitados (a defesa é escapar na saída)" "<script>alert(1)</script>|abc ???" "$($SQL "select concat(cpf,'|',telefone) from usuarios where email='cad2.teste@padaria.test'")"
 EID2=$($SQL "select empresa_id from usuarios where email='cad2.teste@padaria.test'")
 get "$CJ" "empresas/ver&id=$EID2" >/dev/null
@@ -236,13 +247,74 @@ zero "Cadastro-23 o contador abre a empresa e o <script> do CPF NÃO executa" "$
 maior0 "Cadastro-23b o CPF aparece escapado (&lt;script&gt;) para o contador" "$(grep -c '&lt;script&gt;alert(1)' $TMP/pag.html)"
 igual "Cadastro-24 a conta criada com senha \"1\" entra (302) e a senha errada não (401)" "302 401" "$(login $TMP/cd9.txt cad2.teste@padaria.test 1) $(login $TMP/cd10.txt cad2.teste@padaria.test 2)"
 igual "Cadastro-25 CNPJ com poucos números é recusado mesmo no modo livre (422)" 422 "$(cadastrar $TMP/cd11.txt "${LIVRE[@]}" --data-urlencode 'email=cad3.teste@padaria.test' --data-urlencode senha=1 --data-urlencode senha_confirmacao=1 --data-urlencode cnpj=12345)"
-igual "Cadastro-26 senha vazia é recusada (422)" 422 "$(cadastrar $TMP/cd12.txt "${LIVRE[@]}" --data-urlencode 'email=cad3.teste@padaria.test' --data-urlencode senha= --data-urlencode senha_confirmacao= --data-urlencode cnpj=77777777777777)"
-igual "Cadastro-27 CPF acima de 30 caracteres é recusado (422), sem erro de banco" 422 "$(cadastrar $TMP/cd13.txt "${LIVRE[@]}" --data-urlencode 'email=cad3.teste@padaria.test' --data-urlencode senha=1 --data-urlencode senha_confirmacao=1 --data-urlencode cnpj=77777777777777 --data-urlencode "cpf=$(printf '1%.0s' $(seq 1 31))")"
+igual "Cadastro-26 senha vazia é recusada (422)" 422 "$(cadastrar $TMP/cd12.txt "${LIVRE[@]}" --data-urlencode 'email=cad3.teste@padaria.test' --data-urlencode senha= --data-urlencode senha_confirmacao= --data-urlencode cnpj=91827364000400)"
+igual "Cadastro-27 CPF acima de 30 caracteres é recusado (422), sem erro de banco" 422 "$(cadastrar $TMP/cd13.txt "${LIVRE[@]}" --data-urlencode 'email=cad3.teste@padaria.test' --data-urlencode senha=1 --data-urlencode senha_confirmacao=1 --data-urlencode cnpj=91827364000400 --data-urlencode "cpf=$(printf '1%.0s' $(seq 1 31))")"
 igual "Cadastro-28 o modo livre vale só no cadastro público: o contador continua exigindo senha forte (422)" 422 "$(post "$CJ" usuarios/salvar --data-urlencode empresa_id=1 --data-urlencode nome=Fraco --data-urlencode email=fraco@x.test --data-urlencode senha=1)"
 igual "Cadastro-29 nada foi criado pelos cadastros recusados" "0" "$($SQL "select count(*) from usuarios where email in ('cad3.teste@padaria.test','fraco@x.test')")"
 
+# ---------------------------------------------------------------------------------------------
+# Seção 12: o DONO da empresa (cliente) cria, paga e exclui as obrigações da PRÓPRIA empresa.
+# É um poder novo (antes só o contador tinha), então a verificação principal é o oposto: o dono NÃO consegue mexer nas
+# obrigações de outra empresa (IDOR). Usa a conta criada na seção 11, que é dona de uma empresa nova e vazia, e as
+# obrigações do seed (empresa 2) como "alvo alheio" para os ataques. Nada do seed é alterado.
+# ---------------------------------------------------------------------------------------------
+echo "=== 12. OBRIGAÇÕES PELO DONO DA EMPRESA (criar, pagar e excluir só na própria empresa)"
+DONO=$TMP/cd5.txt
+VENC_ATRASO=$(date -d '-10 days' +%F); VENC_PRAZO=$(date -d '+3 days' +%F); VENC_FUTURO_PAGTO=$(date -d '+5 days' +%F)
+faixa_json() { grep -o '"faixa":"[a-z]*"' "$TMP/pag.html" | head -1 | cut -d'"' -f4; }
+score_json() { grep -o '^{"score":[0-9]*' "$TMP/pag.html" | head -1 | cut -d: -f2; }
+SEED_ANTES="$($SQL "select group_concat(status order by id separator ' ') from obrigacoes where id<=7")"
+ALHEIA_ANTES="$($SQL "select concat(status,'|',ifnull(data_pagamento,'-')) from obrigacoes where id=4") $($SQL 'select count(*) from obrigacoes where empresa_id in (1,2,3)')"
+
+igual "Dono-1 abre o formulário de nova obrigação da PRÓPRIA empresa (200)" 200 "$(get $DONO "obrigacoes/criar&empresa_id=$NOVA")"
+maior0 "Dono-1b o formulário traz a prévia do termômetro e os atalhos de data" "$(grep -c 'data-simulacao\|data-atalho' $TMP/pag.html)"
+for e in 1 2 3; do
+  igual "Dono-2 não abre o formulário da empresa $e, que é de outra pessoa (403)" 403 "$(get $DONO "obrigacoes/criar&empresa_id=$e")"
+done
+igual "Dono-3 a prévia do termômetro da própria empresa responde (200)" 200 "$(get $DONO "termometro/simular&empresa_id=$NOVA&vencimento=$VENC_ATRASO&valor=100,00")"
+igual "Dono-3b a prévia calcula crítico para uma guia vencida há 10 dias" "critico" "$(grep -o '"depois":{"score":[0-9]*,"faixa":"[a-z]*"' $TMP/pag.html | grep -o '"faixa":"[a-z]*"' | cut -d'"' -f4)"
+igual "Dono-3c a prévia de empresa alheia é recusada (403)" 403 "$(get $DONO "termometro/simular&empresa_id=2&vencimento=$VENC_ATRASO")"
+igual "Dono-3d prévia com dados incompletos não é erro (200, com a lista de erros)" 200 "$(get $DONO "termometro/simular&empresa_id=$NOVA")"
+
+igual "Dono-4 POST salvar com empresa_id FORJADO (empresa 2) é recusado (403)" 403 "$(post $DONO obrigacoes/salvar --data-urlencode empresa_id=2 --data-urlencode tipo_obrigacao_id=1 --data-urlencode competencia=$MES --data-urlencode data_vencimento=$VENC_ATRASO --data-urlencode valor=1)"
+igual "Dono-4b nenhuma obrigação foi criada nas empresas alheias" "$(echo $ALHEIA_ANTES | cut -d' ' -f2)" "$($SQL 'select count(*) from obrigacoes where empresa_id in (1,2,3)')"
+
+igual "Dono-5 cadastra uma guia VENCIDA na própria empresa (302)" 302 "$(post $DONO obrigacoes/salvar --data-urlencode empresa_id=$NOVA --data-urlencode tipo_obrigacao_id=1 --data-urlencode competencia=$MES --data-urlencode data_vencimento=$VENC_ATRASO --data-urlencode valor=1.000,00 --data-urlencode 'observacao="><img src=x onerror=alert(1)>')"
+OID=$($SQL "select id from obrigacoes where empresa_id=$NOVA order by id desc limit 1")
+get $DONO "obrigacoes/index&empresa_id=$NOVA" >/dev/null
+maior0 "Dono-6 depois de salvar, a tela diz como o termômetro mudou (de 0% para 80%)" "$(grep -c 'O termômetro foi de 0% (Risco baixo) para 80% (Risco crítico)' $TMP/pag.html)"
+maior0 "Dono-6b a lista traz o termômetro, a guia e as ações Pagar/Excluir para o dono" "$(grep -c 'data-termometro' $TMP/pag.html)"
+zero "Dono-6c o dono NÃO vê a ferramenta de cobrança (WhatsApp) nem o valor com multa" "$(grep -c 'WhatsApp\|wa.me\|com multa e juros' $TMP/pag.html)"
+zero "Dono-6d XSS: a observação da guia sai escapada na lista (sem <img> executável)" "$(grep -c '<img src=x' $TMP/pag.html)"
+get $DONO "termometro/json&empresa_id=$NOVA" >/dev/null
+igual "Dono-7 o termômetro da empresa ficou CRÍTICO com 80% (a guia vencida pesa)" "critico 80" "$(faixa_json) $(score_json)"
+
+# --- ataques às obrigações de OUTRA empresa (ids 4 e 5 são da empresa 2) ---
+igual "Dono-8 pagar obrigação ALHEIA (id 4) é recusado (403)" 403 "$(post $DONO obrigacoes/pagar --data-urlencode id=4 --data-urlencode data_pagamento=$HOJE)"
+igual "Dono-8b excluir obrigação ALHEIA (id 4) é recusado (403)" 403 "$(post $DONO obrigacoes/excluir --data-urlencode id=4)"
+igual "Dono-8c a obrigação inexistente dá o MESMO 403 (não revela quais ids existem)" "403 403" "$(post $DONO obrigacoes/pagar --data-urlencode id=999999 --data-urlencode data_pagamento=$HOJE) $(post $DONO obrigacoes/excluir --data-urlencode id=999999)"
+igual "Dono-8d alheia já paga (id 5) também dá 403, igual à inexistente" 403 "$(post $DONO obrigacoes/excluir --data-urlencode id=5)"
+igual "Dono-8e nada mudou nas obrigações alheias depois dos ataques" "$ALHEIA_ANTES" "$($SQL "select concat(status,'|',ifnull(data_pagamento,'-')) from obrigacoes where id=4") $($SQL 'select count(*) from obrigacoes where empresa_id in (1,2,3)')"
+igual "Dono-8f o contador, que vê tudo, recebe 404 (e não 403) para obrigação inexistente" 404 "$(post "$CJ" obrigacoes/pagar --data-urlencode id=999999 --data-urlencode data_pagamento=$HOJE)"
+igual "Dono-9 pagar sem token CSRF é bloqueado (403)" 403 "$(code -b $DONO -c $DONO -X POST "$IDX?rota=obrigacoes/pagar" -d "id=$OID")"
+igual "Dono-9b GET em pagar/excluir é recusado (405)" "405 405" "$(code -b $DONO -c $DONO "$IDX?rota=obrigacoes/pagar&id=$OID") $(code -b $DONO -c $DONO "$IDX?rota=obrigacoes/excluir&id=$OID")"
+
+# --- ações do dono na PRÓPRIA empresa ---
+igual "Dono-10 pagar com data futura é recusado (422)" 422 "$(post $DONO obrigacoes/pagar --data-urlencode id=$OID --data-urlencode data_pagamento=$VENC_FUTURO_PAGTO)"
+igual "Dono-11 pagar a própria guia (302)" 302 "$(post $DONO obrigacoes/pagar --data-urlencode id=$OID --data-urlencode data_pagamento=$HOJE)"
+get $DONO "obrigacoes/index&empresa_id=$NOVA" >/dev/null
+maior0 "Dono-11b a tela diz que o termômetro voltou (de 80% para 0%)" "$(grep -c 'O termômetro foi de 80% (Risco crítico) para 0% (Risco baixo)' $TMP/pag.html)"
+get $DONO "termometro/json&empresa_id=$NOVA" >/dev/null
+igual "Dono-11c depois de pagar, o termômetro voltou a BAIXO com 0%" "baixo 0" "$(faixa_json) $(score_json)"
+igual "Dono-12 pagar de novo a mesma guia é recusado (409)" 409 "$(post $DONO obrigacoes/pagar --data-urlencode id=$OID --data-urlencode data_pagamento=$HOJE)"
+igual "Dono-12b excluir guia PAGA (histórico) é recusado (409)" 409 "$(post $DONO obrigacoes/excluir --data-urlencode id=$OID)"
+igual "Dono-13 cadastrar a MESMA obrigação de novo (tipo + competência) é recusado (409)" 409 "$(post $DONO obrigacoes/salvar --data-urlencode empresa_id=$NOVA --data-urlencode tipo_obrigacao_id=1 --data-urlencode competencia=$MES --data-urlencode data_vencimento=$VENC_PRAZO --data-urlencode valor=1)"
+igual "Dono-14 cadastra outra guia (a vencer em 3 dias) e a exclui (302 e 302)" "302 302" "$(post $DONO obrigacoes/salvar --data-urlencode empresa_id=$NOVA --data-urlencode tipo_obrigacao_id=2 --data-urlencode competencia=$MES --data-urlencode data_vencimento=$VENC_PRAZO --data-urlencode valor=) $(post $DONO obrigacoes/excluir --data-urlencode id=$($SQL "select id from obrigacoes where empresa_id=$NOVA and tipo_obrigacao_id=2"))"
+igual "Dono-14b a guia excluída sumiu do banco e a paga (histórico) continua" "0 1" "$($SQL "select count(*) from obrigacoes where empresa_id=$NOVA and tipo_obrigacao_id=2") $($SQL "select count(*) from obrigacoes where empresa_id=$NOVA and status='pago'")"
+igual "Dono-15 o seed não foi alterado em nenhum momento desta seção (obrigações 1 a 7)" "$SEED_ANTES" "$($SQL "select group_concat(status order by id separator ' ') from obrigacoes where id<=7")"
+
 echo "=== LIMPEZA"
-$SQL "delete from obrigacoes where empresa_id in (select id from empresas where cnpj='45723174000110'); delete from empresas where cnpj='45723174000110'; delete from usuarios where email in ('perfil@x.test', 'cad.teste@padaria.test', 'cad2.teste@padaria.test', 'cad3.teste@padaria.test'); delete from empresas where cnpj in ('12345678000195', '22222222222222', '77777777777777'); delete from avaliacoes where id > 1;"
+$SQL "delete from obrigacoes where empresa_id in (select id from empresas where cnpj in ('91827364000103','91827364000200','91827364000300','91827364000400')); delete from empresas where cnpj='91827364000103'; delete from usuarios where email in ('perfil@x.test', 'cad.teste@padaria.test', 'cad2.teste@padaria.test', 'cad3.teste@padaria.test'); delete from empresas where cnpj in ('91827364000200', '91827364000300', '91827364000400'); delete from avaliacoes where usuario_id = 1 and comentario = '<script>alert(1)</script>';"
 echo "banco restaurado (empresas/usuários/obrigações/avaliações): $($SQL 'select count(*) from empresas') $($SQL 'select count(*) from usuarios') $($SQL 'select count(*) from obrigacoes') $($SQL 'select count(*) from avaliacoes')  | empresa 1 ativa=$($SQL 'select ativa from empresas where id=1')  obrigação 1 = $($SQL 'select status from obrigacoes where id=1')"
 rm -rf "$TMP"
 echo
