@@ -13,7 +13,7 @@ namespace App\Core;
  */
 final class Cabecalhos
 {
-    private const CDN = 'https://cdn.jsdelivr.net'; // Bootstrap (com SRI nas tags <link>/<script>)
+    private const CDN = 'https://cdn.jsdelivr.net'; // Bootstrap e Bootstrap Icons (com SRI nas tags <link>/<script>)
 
     /** @return array<string,string> nome => valor */
     public static function lista(bool $https): array
@@ -23,7 +23,7 @@ final class Cabecalhos
             "script-src 'self' " . self::CDN,
             "style-src 'self' " . self::CDN,
             "img-src 'self' data:",      // data: para os ícones SVG embutidos no CSS do Bootstrap
-            "font-src 'self'",
+            "font-src 'self' " . self::CDN, // a fonte dos ícones (Bootstrap Icons) vem do mesmo CDN
             "connect-src 'self'",        // o fetch do JS só pode falar com o próprio servidor
             "object-src 'none'",
             "base-uri 'self'",

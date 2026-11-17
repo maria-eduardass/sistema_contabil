@@ -62,3 +62,8 @@ teste('Cabeçalhos: nenhum valor tem quebra de linha (injeção de cabeçalho)',
         }
     }
 });
+
+teste('Cabeçalhos: fontes só do próprio site e do CDN (Bootstrap Icons carrega a fonte de lá)', function () {
+    afirmarIgual(["'self'", 'https://cdn.jsdelivr.net'], diretivaCspTeste('font-src'));
+    afirmarIgual(["'self'", 'data:'], diretivaCspTeste('img-src'));
+});
