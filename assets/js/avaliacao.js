@@ -19,7 +19,7 @@
     var contador = form.querySelector('[data-contador]');
     var comentario = form.querySelector('textarea');
     var frases = { 1: 'Muito ruim', 2: 'Ruim', 3: 'Regular', 4: 'Bom', 5: 'Excelente!' };
-    var padrao = textoNota.textContent;
+    var padrao = textoNota.textContent; // frase inicial, restaurada depois de enviar
 
     // Frase ao lado das estrelas e contador de caracteres (textContent: nunca innerHTML).
     form.addEventListener('change', function (e) {

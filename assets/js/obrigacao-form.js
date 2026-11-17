@@ -127,6 +127,7 @@
             d.setHours(12, 0, 0, 0); // meio-dia evita virar o dia por causa de horário de verão
             d.setDate(d.getDate() + parseInt(botao.getAttribute('data-atalho'), 10));
             campoVencimento.value = textoData(d);
+            // Competência nunca pode ser depois do vencimento (o servidor recusa): se estiver vazia ou maior, acompanha o atalho.
             if (campoCompetencia && (campoCompetencia.value === '' || campoCompetencia.value > textoData(d))) {
                 campoCompetencia.value = textoData(d);
             }
