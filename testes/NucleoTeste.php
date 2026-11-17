@@ -89,3 +89,53 @@ teste('formatarDataHora() converte timestamp do banco para dd/mm/aaaa hh:mm', fu
     afirmarIgual('17/11/2026 14:05', formatarDataHora('2026-11-17 14:05:33'));
     afirmarIgual('lixo', formatarDataHora('lixo'));
 });
+
+// --- Selos e ícones (Bootstrap Icons) ---
+teste('seloStatus() mostra ícone + rótulo para Pago, Pendente e Atrasado (nunca só cor)', function () {
+    $pago = seloStatus('pago');
+    afirmarVerdadeiro(str_contains($pago, 'selo-status-pago') && str_contains($pago, '>Pago<') && str_contains($pago, 'bi-check-circle-fill'));
+    $pendente = seloStatus('pendente');
+    afirmarVerdadeiro(str_contains($pendente, 'selo-status-pendente') && str_contains($pendente, '>Pendente<') && str_contains($pendente, 'bi-clock-history'));
+    $atrasado = seloStatus('atrasado');
+    afirmarVerdadeiro(str_contains($atrasado, 'selo-status-atrasado') && str_contains($atrasado, '>Atrasado<') && str_contains($atrasado, 'bi-exclamation-triangle-fill'));
+    foreach ([$pago, $pendente, $atrasado] as $html) {
+        afirmarVerdadeiro(str_contains($html, 'aria-hidden="true"'), 'o ícone é decorativo: o rótulo é lido');
+    }
+});
+
+teste('seloStatus() com valor desconhecido escapa o texto (nada do banco vira HTML)', function () {
+    $html = seloStatus('<script>alert(1)</script>');
+    afirmarFalso(str_contains($html, '<script>'));
+    afirmarVerdadeiro(str_contains($html, '&lt;script&gt;'));
+    afirmarVerdadeiro(str_contains($html, 'selo-status-desconhecido'));
+});
+
+teste('seloFaixa() usa um ícone diferente por faixa e o rótulo recebido', function () {
+    $esperado = ['baixo' => 'bi-check-circle-fill', 'atencao' => 'bi-exclamation-circle-fill', 'alto' => 'bi-exclamation-triangle-fill', 'critico' => 'bi-x-octagon-fill'];
+    foreach ($esperado as $faixa => $icone) {
+        $html = seloFaixa($faixa, 'Rótulo ' . $faixa);
+        afirmarVerdadeiro(str_contains($html, "selo-faixa-$faixa") && str_contains($html, $icone) && str_contains($html, "Rótulo $faixa"), $faixa);
+    }
+    afirmarFalso(str_contains(seloFaixa('x', '<b>'), '<b>'));
+});
+
+teste('icone() só aceita nomes simples de ícone (sem injetar atributos)', function () {
+    afirmarIgual('<i class="bi bi-whatsapp" aria-hidden="true"></i>', icone('whatsapp'));
+    afirmarIgual('<i class="bi bi-box-arrow-right" aria-hidden="true"></i>', icone('box-arrow-right'));
+    foreach (['x" onload="alert(1)', 'A', '', 'a b', '<i>'] as $ruim) {
+        afirmarIgual('', icone($ruim), $ruim);
+    }
+});
+
+teste('iniciais() devolve a primeira letra do nome, em maiúscula e com acento', function () {
+    afirmarIgual('C', iniciais('carla Contadora'));
+    afirmarIgual('Á', iniciais('álvaro'));
+    afirmarIgual('?', iniciais('   '));
+});
+
+teste('plural() concorda com a quantidade (0 e 1 no singular em português: 0 guias, 1 guia)', function () {
+    afirmarIgual('1 guia', plural(1, 'guia', 'guias'));
+    afirmarIgual('2 guias', plural(2, 'guia', 'guias'));
+    afirmarIgual('0 guias', plural(0, 'guia', 'guias'));
+    afirmarIgual('12 empresas ativas', plural(12, 'empresa ativa', 'empresas ativas'));
+});
