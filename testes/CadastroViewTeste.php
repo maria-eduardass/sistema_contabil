@@ -134,3 +134,9 @@ teste('Empresa (tela do contador): usuário sem CPF/telefone não mostra rótulo
     afirmarFalso(str_contains($html, 'CPF:'));
     afirmarFalso(str_contains($html, 'Tel.:'));
 });
+
+teste('Cadastro (tela): e-mail e telefone com autocomplete/inputmode próprios (o navegador não mistura os dois)', function () {
+    $html = View::renderizar('cadastro/form', ['titulo' => 'Criar conta', 'valores' => array_fill_keys(['nome', 'email', 'cpf', 'telefone', 'razao_social', 'cnpj', 'regime_tributario'], ''), 'erros' => [], 'regimes' => []], '');
+    afirmarVerdadeiro(preg_match('~id="email"[^>]*autocomplete="email"~', $html) === 1);
+    afirmarVerdadeiro(preg_match('~type="tel" id="telefone"[^>]*inputmode="tel"[^>]*autocomplete="tel"~', $html) === 1);
+});

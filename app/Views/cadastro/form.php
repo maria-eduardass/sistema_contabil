@@ -42,7 +42,7 @@ $erro = static fn (string $campo): string => isset($erros[$campo])
             </div>
             <div class="mb-3">
                 <label class="form-label" for="email">E-mail (será o seu login)</label>
-                <input class="<?= $classe('email') ?>" type="email" id="email" name="email" maxlength="150" value="<?= e($valores['email']) ?>" autocomplete="username" required>
+                <input class="<?= $classe('email') ?>" type="email" id="email" name="email" maxlength="150" value="<?= e($valores['email']) ?>" autocomplete="email" inputmode="email" required>
                 <?= $erro('email') ?>
             </div>
             <?php /* CPF e telefone: opcionais e livres (projeto escolar). Sem required e sem máscara obrigatória. */ ?>
@@ -54,7 +54,7 @@ $erro = static fn (string $campo): string => isset($erros[$campo])
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label" for="telefone">Telefone (opcional)</label>
-                    <input class="<?= $classe('telefone') ?>" type="tel" id="telefone" name="telefone" maxlength="30" placeholder="(00) 00000-0000" value="<?= e($valores['telefone']) ?>" autocomplete="tel">
+                    <input class="<?= $classe('telefone') ?>" type="tel" id="telefone" name="telefone" maxlength="30" inputmode="tel" placeholder="(00) 00000-0000" value="<?= e($valores['telefone']) ?>" autocomplete="tel">
                     <?= $erro('telefone') ?>
                 </div>
             </div>

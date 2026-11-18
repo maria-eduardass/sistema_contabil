@@ -107,6 +107,7 @@ final class CadastroController
             'erros' => $erros,
             'regimes' => ValidadorEmpresa::REGIMES,
             'auth' => 'larga', // o formulário é mais largo que a tela de login
+            'scripts' => ['assets/js/cadastro.js'],
         ]);
     }
 }
