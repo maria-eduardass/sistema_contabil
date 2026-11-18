@@ -1,4 +1,5 @@
 // Modal de avaliação do sistema: envia a nota (1 a 5) por fetch, sem recarregar a página.
+// Também mostra a frase da nota escolhida e o contador de caracteres do comentário.
 // O texto devolvido pelo servidor entra por textContent (nunca innerHTML).
 (function () {
     'use strict';

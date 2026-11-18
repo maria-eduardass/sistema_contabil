@@ -1,4 +1,12 @@
-<?php use App\Core\Csrf; ?>
+<?php
+use App\Core\Csrf;
+
+/**
+ * Janela de avaliação do sistema (aberta pelo botão "Avaliar o sistema" do menu lateral).
+ * Nota de 1 a 5 em estrelas (radios reais: funcionam com teclado e leitor de tela), comentário opcional.
+ * O envio é feito por assets/js/avaliacao.js (fetch); o servidor valida tudo de novo (AvaliacaoController).
+ */
+?>
 <div class="modal fade" id="modalAvaliacao" tabindex="-1" aria-labelledby="tituloAvaliacao" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
